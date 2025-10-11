@@ -5,11 +5,16 @@ import './index.css'
 
 // React Router
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+import NotFoundPage from './components/NotFoundPage.tsx'
 
 const router = createBrowserRouter([
   {
     path: '/',
     element: <App />
+  },
+  {
+    path: '*',
+    element: <NotFoundPage />
   }
 ])
 
