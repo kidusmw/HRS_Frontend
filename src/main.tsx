@@ -5,7 +5,7 @@ import './index.css'
 
 // React Router
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import NotFoundPage from './components/NotFoundPage.tsx'
+import NotFoundPage from './features/shared/NotFoundPage.tsx'
 
 const router = createBrowserRouter([
   {
