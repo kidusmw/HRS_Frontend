@@ -1,8 +1,7 @@
+import { SignupForm } from "@/components/signup-form"
 import { GalleryVerticalEnd } from "lucide-react"
 
-import { LoginForm } from "@/components/login-form"
-
-export default function LoginPage() {
+const RegisterPage = () => {
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
@@ -16,13 +15,13 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
-            <LoginForm />
+            <SignupForm />
           </div>
         </div>
       </div>
       <div className="bg-muted relative hidden lg:block">
         <img
-          src="https://plus.unsplash.com/premium_photo-1675745329954-9639d3b74bbf?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8aG90ZWxzfGVufDB8fDB8fHww&auto=format&fit=crop&q=60&w=600"
+          src="https://images.unsplash.com/photo-1606046604972-77cc76aee944?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8aG90ZWxzfGVufDB8fDB8fHww&auto=format&fit=crop&q=60&w=600"
           alt="Image"
           className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
         />
@@ -30,3 +29,5 @@ export default function LoginPage() {
     </div>
   )
 }
+
+export default RegisterPage
