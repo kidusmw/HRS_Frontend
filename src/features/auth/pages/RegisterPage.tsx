@@ -1,4 +1,4 @@
-import { SignupForm } from "@/components/signup-form"
+import { SignupForm } from "@/components/forms/signup-form"
 import { GalleryVerticalEnd } from "lucide-react"
 
 const RegisterPage = () => {
@@ -10,7 +10,7 @@ const RegisterPage = () => {
             <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
               <GalleryVerticalEnd className="size-4" />
             </div>
-            Acme Inc.
+            Trevo
           </a>
         </div>
         <div className="flex flex-1 items-center justify-center">
@@ -21,7 +21,7 @@ const RegisterPage = () => {
       </div>
       <div className="bg-muted relative hidden lg:block">
         <img
-          src="https://images.unsplash.com/photo-1606046604972-77cc76aee944?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8aG90ZWxzfGVufDB8fDB8fHww&auto=format&fit=crop&q=60&w=600"
+          src="src/assets/hotel_registeration_img.jpg"
           alt="Image"
           className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
         />
