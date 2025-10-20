@@ -2,6 +2,7 @@ import { Route, Routes, Navigate } from 'react-router-dom'
 import LoginPage from './features/auth/pages/LoginPage'
 import RegisterPage from './features/auth/pages/RegisterPage'
 import VerifyEmailPage from './features/auth/pages/VerifyEmailPage'
+import GoogleOAuthPopup from './features/auth/pages/GoogleOAuthPopup'
 import DashboardPage from './features/dashboard/pages/DashboardPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import NotFoundPage from './features/shared/NotFoundPage'
@@ -13,6 +14,7 @@ function App() {
       <Route path='/login' element={<LoginPage />} />
       <Route path='/register' element={<RegisterPage />} />
       <Route path='/verify' element={<VerifyEmailPage />} />
+      <Route path='/oauth/google/popup' element={<GoogleOAuthPopup />} />
       <Route 
         path='/dashboard' 
         element={

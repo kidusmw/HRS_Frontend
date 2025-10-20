@@ -19,3 +19,8 @@ export const loginUser = async (data: LoginCredentials): Promise<AuthResponse> =
 export const logoutUser = async (): Promise<void> => {
   await api.post('/logout');
 };
+
+export const getGoogleRedirectUrl = async (): Promise<{ redirect_url: string }> => {
+  const response = await api.get('/auth/google/redirect');
+  return response.data;
+};
