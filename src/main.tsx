@@ -1,25 +1,27 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { Provider } from 'react-redux'
 import App from './App.tsx'
 import './index.css'
 
-// React Router
-import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import NotFoundPage from './features/shared/NotFoundPage.tsx'
+// Redux store
+import { store } from './app/store.ts'
+import { hydrateFromStorage } from './features/auth/authSlice.ts'
 
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <App />
-  },
-  {
-    path: '*',
-    element: <NotFoundPage />
-  }
-])
+// React Router
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+
+// Hydrate auth state from localStorage on app boot
+store.dispatch(hydrateFromStorage());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <RouterProvider router={ router } />
+    <Provider store={store}>
+      <BrowserRouter>
+        <Routes>
+          <Route path='/*' element={<App />} />
+        </Routes>
+      </BrowserRouter>
+    </Provider>
   </StrictMode>,
 )
