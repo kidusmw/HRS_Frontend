@@ -23,7 +23,8 @@ import { Link } from "react-router-dom"
 import { loginUserThunk, hydrateFromStorage } from "@/features/auth/authSlice"
 import { getGoogleRedirectUrl, forgotPassword } from "@/features/auth/api/authApi"
 import type { AppDispatch, RootState } from "@/app/store"
-import { Loader2 } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
+import { Eye, EyeOff } from "lucide-react"
 import type { LoginCredentials } from "@/types/auth"
 
 export function LoginForm({
@@ -42,6 +43,9 @@ export function LoginForm({
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState("")
   const [forgotPasswordError, setForgotPasswordError] = useState("")
+  
+  // Password visibility state
+  const [showPassword, setShowPassword] = useState(false)
 
   const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
@@ -263,7 +267,7 @@ export function LoginForm({
                     <Button type="submit" disabled={forgotPasswordLoading}>
                       {forgotPasswordLoading ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          <Spinner />
                           Sending...
                         </>
                       ) : (
@@ -275,14 +279,29 @@ export function LoginForm({
               </DialogContent>
             </Dialog>
           </div>
-          <Input 
-            id="password" 
-            name="password"
-            type="password" 
-            value={formData.password}
-            onChange={handleChange}
-            required 
-          />
+          <div className="relative">
+            <Input 
+              id="password" 
+              name="password"
+              type={showPassword ? "text" : "password"} 
+              value={formData.password}
+              onChange={handleChange}
+              required 
+              className="pr-10"
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              onClick={() => setShowPassword(!showPassword)}
+              disabled={loading}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4 text-gray-400" />
+              ) : (
+                <Eye className="h-4 w-4 text-gray-400" />
+              )}
+            </button>
+          </div>
           {errors.password && <p className="text-red-500 text-sm mt-1">{errors.password}</p>}
         </Field>
         
@@ -290,7 +309,7 @@ export function LoginForm({
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner />
                 Logging in...
               </>
             ) : (

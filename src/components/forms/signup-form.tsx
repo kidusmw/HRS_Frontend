@@ -13,7 +13,8 @@ import { cn } from "@/lib/utils"
 import { Link } from "react-router-dom"
 import { registerUserThunk } from "@/features/auth/authSlice"
 import type { AppDispatch, RootState } from "@/app/store"
-import { Loader2, CheckCircle } from "lucide-react"
+import { Spinner } from "@/components/ui/spinner"
+import { Eye, EyeOff, CheckCircle } from "lucide-react"
 import type { RegisterData } from "@/types/auth"
 
 export function SignupForm({
@@ -28,6 +29,8 @@ export function SignupForm({
   })
   const [errors, setErrors] = useState<Partial<RegisterData>>({})
   const [isSuccess, setIsSuccess] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false)
 
   const dispatch = useDispatch<AppDispatch>()
   const { loading, error } = useSelector((state: RootState) => state.auth)
@@ -157,14 +160,29 @@ export function SignupForm({
         
         <Field>
           <FieldLabel htmlFor="password">Password</FieldLabel>
-          <Input 
-            id="password" 
-            name="password"
-            type="password" 
-            value={formData.password}
-            onChange={handleChange}
-            required 
-          />
+          <div className="relative">
+            <Input 
+              id="password" 
+              name="password"
+              type={showPassword ? "text" : "password"} 
+              value={formData.password}
+              onChange={handleChange}
+              required 
+              className="pr-10"
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              onClick={() => setShowPassword(!showPassword)}
+              disabled={loading}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4 text-gray-400" />
+              ) : (
+                <Eye className="h-4 w-4 text-gray-400" />
+              )}
+            </button>
+          </div>
           <FieldDescription>
             Must be at least 8 characters long.
           </FieldDescription>
@@ -173,14 +191,29 @@ export function SignupForm({
         
         <Field>
           <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
-          <Input 
-            id="confirm-password" 
-            name="password_confirmation"
-            type="password" 
-            value={formData.password_confirmation}
-            onChange={handleChange}
-            required 
-          />
+          <div className="relative">
+            <Input 
+              id="confirm-password" 
+              name="password_confirmation"
+              type={showPasswordConfirmation ? "text" : "password"} 
+              value={formData.password_confirmation}
+              onChange={handleChange}
+              required 
+              className="pr-10"
+            />
+            <button
+              type="button"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
+              disabled={loading}
+            >
+              {showPasswordConfirmation ? (
+                <EyeOff className="h-4 w-4 text-gray-400" />
+              ) : (
+                <Eye className="h-4 w-4 text-gray-400" />
+              )}
+            </button>
+          </div>
           <FieldDescription>Please confirm your password.</FieldDescription>
           {errors.password_confirmation && <p className="text-red-500 text-sm mt-1">{errors.password_confirmation}</p>}
         </Field>
@@ -189,7 +222,7 @@ export function SignupForm({
           <Button type="submit" disabled={loading} className="w-full">
             {loading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Spinner />
                 Creating Account...
               </>
             ) : (

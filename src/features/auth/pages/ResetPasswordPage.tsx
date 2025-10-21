@@ -8,8 +8,9 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Spinner } from "@/components/ui/spinner"
 import { resetPassword } from "@/features/auth/api/authApi"
-import { Loader2 } from "lucide-react"
+import { Eye, EyeOff } from "lucide-react"
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
@@ -27,6 +28,8 @@ export function ResetPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [successMessage, setSuccessMessage] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
+  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false)
 
   const token = searchParams.get("token")
   const email = searchParams.get("email")
@@ -154,15 +157,30 @@ export function ResetPasswordPage() {
 
               <Field>
                 <FieldLabel htmlFor="password">New Password</FieldLabel>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  disabled={loading || success}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    disabled={loading || success}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                    disabled={loading || success}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-gray-400" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-gray-400" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="text-red-500 text-sm mt-1">{errors.password}</p>
                 )}
@@ -170,15 +188,30 @@ export function ResetPasswordPage() {
 
               <Field>
                 <FieldLabel htmlFor="password_confirmation">Confirm Password</FieldLabel>
-                <Input
-                  id="password_confirmation"
-                  name="password_confirmation"
-                  type="password"
-                  value={formData.password_confirmation}
-                  onChange={handleChange}
-                  required
-                  disabled={loading || success}
-                />
+                <div className="relative">
+                  <Input
+                    id="password_confirmation"
+                    name="password_confirmation"
+                    type={showPasswordConfirmation ? "text" : "password"}
+                    value={formData.password_confirmation}
+                    onChange={handleChange}
+                    required
+                    disabled={loading || success}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
+                    disabled={loading || success}
+                  >
+                    {showPasswordConfirmation ? (
+                      <EyeOff className="h-4 w-4 text-gray-400" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-gray-400" />
+                    )}
+                  </button>
+                </div>
                 {errors.password_confirmation && (
                   <p className="text-red-500 text-sm mt-1">{errors.password_confirmation}</p>
                 )}
@@ -192,7 +225,7 @@ export function ResetPasswordPage() {
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Spinner />
                       Resetting Password...
                     </>
                   ) : (
