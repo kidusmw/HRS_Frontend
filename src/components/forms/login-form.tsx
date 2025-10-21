@@ -10,10 +10,18 @@ import {
   FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { Link } from "react-router-dom"
 import { loginUserThunk, hydrateFromStorage } from "@/features/auth/authSlice"
-import { getGoogleRedirectUrl } from "@/features/auth/api/authApi"
+import { getGoogleRedirectUrl, forgotPassword } from "@/features/auth/api/authApi"
 import type { AppDispatch, RootState } from "@/app/store"
 import { Loader2 } from "lucide-react"
 import type { LoginCredentials } from "@/types/auth"
@@ -27,6 +35,13 @@ export function LoginForm({
     password: "",
   })
   const [errors, setErrors] = useState<Partial<LoginCredentials>>({})
+  
+  // Forgot password modal state
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("")
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState("")
+  const [forgotPasswordError, setForgotPasswordError] = useState("")
 
   const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
@@ -75,6 +90,34 @@ export function LoginForm({
       // Navigation will be handled by useEffect when isAuthenticated changes
     } catch (error) {
       // Error is handled by Redux state
+    }
+  }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!forgotPasswordEmail.trim()) {
+      setForgotPasswordError("Email is required")
+      return
+    }
+    
+    if (!/\S+@\S+\.\S+/.test(forgotPasswordEmail)) {
+      setForgotPasswordError("Please enter a valid email address")
+      return
+    }
+
+    setForgotPasswordLoading(true)
+    setForgotPasswordError("")
+    setForgotPasswordMessage("")
+
+    try {
+      const response = await forgotPassword(forgotPasswordEmail)
+      setForgotPasswordMessage(response.message)
+      setForgotPasswordEmail("") // Clear the form
+    } catch (error) {
+      setForgotPasswordError("Something went wrong. Please try again.")
+    } finally {
+      setForgotPasswordLoading(false)
     }
   }
 
@@ -166,12 +209,71 @@ export function LoginForm({
         <Field>
           <div className="flex items-center">
             <FieldLabel htmlFor="password">Password</FieldLabel>
-            <a
-              href="#"
-              className="ml-auto text-sm underline-offset-4 hover:underline"
-            >
-              Forgot your password?
-            </a>
+            <Dialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="ml-auto text-sm underline-offset-4 hover:underline"
+                >
+                  Forgot your password?
+                </button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Reset your password</DialogTitle>
+                  <DialogDescription>
+                    Enter your email address and we'll send you a link to reset your password.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <Field>
+                    <FieldLabel htmlFor="forgot-email">Email</FieldLabel>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder="m@example.com"
+                      value={forgotPasswordEmail}
+                      onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                      required
+                    />
+                    {forgotPasswordError && (
+                      <p className="text-red-500 text-sm mt-1">{forgotPasswordError}</p>
+                    )}
+                  </Field>
+                  
+                  {forgotPasswordMessage && (
+                    <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
+                      {forgotPasswordMessage}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setForgotPasswordOpen(false)
+                        setForgotPasswordEmail("")
+                        setForgotPasswordMessage("")
+                        setForgotPasswordError("")
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={forgotPasswordLoading}>
+                      {forgotPasswordLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        "Send reset link"
+                      )}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
           <Input 
             id="password" 

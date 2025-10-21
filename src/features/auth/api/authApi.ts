@@ -24,3 +24,18 @@ export const getGoogleRedirectUrl = async (): Promise<{ redirect_url: string }> 
   const response = await api.get('/auth/google/redirect');
   return response.data;
 };
+
+export const forgotPassword = async (email: string): Promise<{ message: string }> => {
+  const response = await api.post('/password/forgot', { email });
+  return response.data;
+};
+
+export const resetPassword = async (data: {
+  token: string;
+  email: string;
+  password: string;
+  password_confirmation: string;
+}): Promise<{ message: string }> => {
+  const response = await api.post('/password/reset', data);
+  return response.data;
+};
