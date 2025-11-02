@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -17,11 +17,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Mail, Shield, Calendar, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Mail, Shield, Calendar, CheckCircle, XCircle, AlertTriangle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -37,6 +37,7 @@ import {
 const profileFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
+  avatar: z.instanceof(File).optional().or(z.literal('')),
 });
 
 const passwordFormSchema = z.object({
@@ -56,12 +57,15 @@ export function Profile() {
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((state: RootState) => state.auth.user);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
       name: user?.name || '',
       email: user?.email || '',
+      avatar: undefined,
     },
   });
 
@@ -74,9 +78,53 @@ export function Profile() {
     },
   });
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        profileForm.setError('avatar', {
+          type: 'manual',
+          message: 'Please select an image file',
+        });
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        profileForm.setError('avatar', {
+          type: 'manual',
+          message: 'Image size must be less than 5MB',
+        });
+        return;
+      }
+      // Set the file in the form
+      profileForm.setValue('avatar', file, { shouldValidate: true });
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarPreview(null);
+    profileForm.setValue('avatar', undefined);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const onSubmitProfile = async (values: ProfileFormValues) => {
     try {
       // TODO: Replace with actual API call
+      const formData = new FormData();
+      formData.append('name', values.name);
+      formData.append('email', values.email);
+      if (values.avatar) {
+        formData.append('avatar', values.avatar);
+      }
       console.log('Updating profile:', values);
       await new Promise((resolve) => setTimeout(resolve, 1000));
       // Show success toast
@@ -142,6 +190,9 @@ export function Profile() {
         <CardContent className="space-y-6">
           <div className="flex items-center gap-6">
             <Avatar className="h-24 w-24">
+              {avatarPreview || (user as any)?.avatar_url ? (
+                <AvatarImage src={avatarPreview || (user as any)?.avatar_url} alt={user.name} />
+              ) : null}
               <AvatarFallback className="text-2xl">
                 {getInitials(user.name)}
               </AvatarFallback>
@@ -205,11 +256,61 @@ export function Profile() {
       <Card>
         <CardHeader>
           <CardTitle>Edit Profile</CardTitle>
-          <CardDescription>Update your name and email address</CardDescription>
+          <CardDescription>Update your name, email address, and profile picture</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...profileForm}>
             <form onSubmit={profileForm.handleSubmit(onSubmitProfile)} className="space-y-6">
+              <FormField
+                control={profileForm.control}
+                name="avatar"
+                render={({ field: { value, onChange, ...field } }) => (
+                  <FormItem>
+                    <FormLabel>Profile Picture</FormLabel>
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-20 w-20">
+                        {avatarPreview || (user as any)?.avatar_url ? (
+                          <AvatarImage src={avatarPreview || (user as any)?.avatar_url} alt={user.name} />
+                        ) : null}
+                        <AvatarFallback className="text-xl">
+                          {getInitials(user.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            {...field}
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              handleAvatarChange(e);
+                              onChange(e.target.files?.[0]);
+                            }}
+                            className="cursor-pointer"
+                          />
+                          {(avatarPreview || (user as any)?.avatar_url) && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={handleRemoveAvatar}
+                            >
+                              <X className="h-4 w-4 mr-2" />
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+                        <FormDescription>
+                          Upload a profile picture. JPG, PNG or GIF. Max 5MB.
+                        </FormDescription>
+                        <FormMessage />
+                      </div>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={profileForm.control}
                 name="name"
