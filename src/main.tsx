@@ -11,6 +11,9 @@ import { hydrateFromStorage } from './features/auth/authSlice.ts'
 // React Router
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
+// Toaster for notifications
+import { Toaster } from '@/components/ui/sonner'
+
 // Hydrate auth state from localStorage on app boot
 store.dispatch(hydrateFromStorage());
 
@@ -22,6 +25,7 @@ createRoot(document.getElementById('root')!).render(
           <Route path='/*' element={<App />} />
         </Routes>
       </BrowserRouter>
+      <Toaster />
     </Provider>
   </StrictMode>,
 )

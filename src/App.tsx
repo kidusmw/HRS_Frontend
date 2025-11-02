@@ -6,7 +6,14 @@ import { ResetPasswordPage } from './features/auth/pages/ResetPasswordPage'
 import GoogleOAuthPopup from './features/auth/pages/GoogleOAuthPopup'
 import DashboardPage from './features/dashboard/pages/DashboardPage'
 import ProtectedRoute from './components/ProtectedRoute'
+import { SuperAdminRoute } from './components/SuperAdminRoute'
 import NotFoundPage from './features/shared/NotFoundPage'
+import { Dashboard } from './features/super_admin/pages/Dashboard'
+import { Users } from './features/super_admin/pages/Users'
+import { Hotels } from './features/super_admin/pages/Hotels'
+import { Logs } from './features/super_admin/pages/Logs'
+import { Backups } from './features/super_admin/pages/Backups'
+import { Settings } from './features/super_admin/pages/Settings'
 
 function App() {
   return (
@@ -24,6 +31,58 @@ function App() {
             <DashboardPage />
           </ProtectedRoute>
         } 
+      />
+      <Route
+        path="/super-admin"
+        element={<Navigate to="/super-admin/dashboard" replace />}
+      />
+      <Route
+        path="/super-admin/dashboard"
+        element={
+          <SuperAdminRoute>
+            <Dashboard />
+          </SuperAdminRoute>
+        }
+      />
+      <Route
+        path="/super-admin/users"
+        element={
+          <SuperAdminRoute>
+            <Users />
+          </SuperAdminRoute>
+        }
+      />
+      <Route
+        path="/super-admin/hotels"
+        element={
+          <SuperAdminRoute>
+            <Hotels />
+          </SuperAdminRoute>
+        }
+      />
+      <Route
+        path="/super-admin/logs"
+        element={
+          <SuperAdminRoute>
+            <Logs />
+          </SuperAdminRoute>
+        }
+      />
+      <Route
+        path="/super-admin/backups"
+        element={
+          <SuperAdminRoute>
+            <Backups />
+          </SuperAdminRoute>
+        }
+      />
+      <Route
+        path="/super-admin/settings"
+        element={
+          <SuperAdminRoute>
+            <Settings />
+          </SuperAdminRoute>
+        }
       />
       <Route path='*' element={<NotFoundPage />} />
     </Routes>

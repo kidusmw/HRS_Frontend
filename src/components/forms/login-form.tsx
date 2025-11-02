@@ -49,14 +49,20 @@ export function LoginForm({
 
   const dispatch = useDispatch<AppDispatch>()
   const navigate = useNavigate()
-  const { loading, error, isAuthenticated } = useSelector((state: RootState) => state.auth)
+  const { loading, error, isAuthenticated, user } = useSelector((state: RootState) => state.auth)
 
-  // Redirect to dashboard if already authenticated
+  // Redirect to appropriate dashboard based on role
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard')
+    if (isAuthenticated && user) {
+      // Route super_admin users to super-admin dashboard
+      if (user.role === 'superadmin' || user.role === 'super_admin') {
+        navigate('/super-admin/dashboard')
+      } else {
+        // Route other users to regular dashboard
+        navigate('/dashboard')
+      }
     }
-  }, [isAuthenticated, navigate])
+  }, [isAuthenticated, user, navigate])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
