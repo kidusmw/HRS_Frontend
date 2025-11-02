@@ -2,11 +2,17 @@ import { Building2, Users, Calendar, Bed, TrendingUp } from 'lucide-react';
 import { SummaryCard } from '../components/SummaryCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 import type { DashboardMetrics, AuditLogItem, NotificationItem } from '@/types/admin';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 // Mock data - will be replaced with API calls
 const mockMetrics: DashboardMetrics = {
@@ -72,6 +78,44 @@ const mockActivity: AuditLogItem[] = [
   },
 ];
 
+// Mock booking data for chart (last 6 months)
+const bookingChartData = [
+  { month: 'Jan', bookings: 245, revenue: 45200 },
+  { month: 'Feb', bookings: 312, revenue: 58700 },
+  { month: 'Mar', bookings: 289, revenue: 53400 },
+  { month: 'Apr', bookings: 356, revenue: 67100 },
+  { month: 'May', bookings: 423, revenue: 79800 },
+  { month: 'Jun', bookings: 398, revenue: 75100 },
+];
+
+// Mock room occupancy data for chart (last 6 months)
+const occupancyChartData = [
+  { month: 'Jan', occupied: 120, available: 380 },
+  { month: 'Feb', occupied: 145, available: 355 },
+  { month: 'Mar', occupied: 138, available: 362 },
+  { month: 'Apr', occupied: 162, available: 338 },
+  { month: 'May', occupied: 175, available: 325 },
+  { month: 'Jun', occupied: 158, available: 342 },
+];
+
+const bookingChartConfig = {
+  bookings: {
+    label: 'Bookings',
+    color: 'var(--chart-1)',
+  },
+} satisfies ChartConfig;
+
+const occupancyChartConfig = {
+  occupied: {
+    label: 'Occupied',
+    color: 'var(--chart-3)',
+  },
+  available: {
+    label: 'Available',
+    color: 'var(--chart-4)',
+  },
+} satisfies ChartConfig;
+
 export function Dashboard() {
   const isLoading = false;
   const metrics = mockMetrics;
@@ -118,6 +162,115 @@ export function Dashboard() {
           isLoading={isLoading}
           description={`${metrics.rooms.occupied} occupied / ${metrics.rooms.available} available`}
         />
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Bookings Trend Chart */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Booking Trends</CardTitle>
+                <CardDescription>Total bookings over the last 6 months</CardDescription>
+              </div>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={bookingChartConfig} className="min-h-[200px] w-full">
+              <AreaChart
+                accessibilityLayer
+                data={bookingChartData}
+                margin={{
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                }}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={10}
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={10}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Area
+                  dataKey="bookings"
+                  type="natural"
+                  fill="var(--color-bookings)"
+                  fillOpacity={0.4}
+                  stroke="var(--color-bookings)"
+                  stackId="a"
+                />
+              </AreaChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Room Occupancy Chart */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Room Occupancy</CardTitle>
+                <CardDescription>Occupied vs available rooms over time</CardDescription>
+              </div>
+              <Bed className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={occupancyChartConfig} className="min-h-[200px] w-full">
+              <AreaChart
+                accessibilityLayer
+                data={occupancyChartData}
+                margin={{
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                }}
+              >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={10}
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={10}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Area
+                  dataKey="occupied"
+                  type="natural"
+                  fill="var(--color-occupied)"
+                  fillOpacity={0.4}
+                  stroke="var(--color-occupied)"
+                  stackId="a"
+                />
+                <Area
+                  dataKey="available"
+                  type="natural"
+                  fill="var(--color-available)"
+                  fillOpacity={0.4}
+                  stroke="var(--color-available)"
+                  stackId="a"
+                />
+              </AreaChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Users by Role */}

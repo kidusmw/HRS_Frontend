@@ -20,7 +20,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { User, Mail, Shield, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Mail, Shield, Calendar, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -53,7 +54,7 @@ type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 export function Profile() {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
-  const { user } = useSelector((state: RootState) => state.auth);
+  const user = useSelector((state: RootState) => state.auth.user);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
 
   const profileForm = useForm<ProfileFormValues>({
@@ -85,7 +86,7 @@ export function Profile() {
     }
   };
 
-  const onSubmitPassword = async (values: PasswordFormValues) => {
+  const onSubmitPassword = async (_values: PasswordFormValues) => {
     try {
       // TODO: Replace with actual API call
       console.log('Changing password...');
@@ -344,27 +345,23 @@ export function Profile() {
       </Card>
 
       {/* Danger Zone */}
-      <Card className="border-destructive">
-        <CardHeader>
-          <CardTitle className="text-destructive">Danger Zone</CardTitle>
-          <CardDescription>
-            Irreversible and destructive actions
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
+      <Alert variant="destructive">
+        <AlertTriangle />
+        <AlertTitle>Danger Zone</AlertTitle>
+        <AlertDescription>
+          <div className="flex items-center justify-between mt-2">
             <div>
-              <h3 className="font-medium">Sign Out</h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="font-medium mb-1">Sign Out</p>
+              <p className="text-sm opacity-90">
                 Sign out of your account. You can sign back in at any time.
               </p>
             </div>
-            <Button variant="destructive" onClick={handleLogout}>
+            <Button variant="destructive" onClick={handleLogout} className="ml-4">
               Sign Out
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </AlertDescription>
+      </Alert>
     </div>
   );
 }
