@@ -14,6 +14,8 @@ import { Hotels } from './features/super_admin/pages/Hotels'
 import { Logs } from './features/super_admin/pages/Logs'
 import { Backups } from './features/super_admin/pages/Backups'
 import { Settings } from './features/super_admin/pages/Settings'
+import { Profile } from './features/super_admin/pages/Profile'
+import { Preferences } from './features/super_admin/pages/Preferences'
 
 function App() {
   return (
@@ -81,6 +83,22 @@ function App() {
         element={
           <SuperAdminRoute>
             <Settings />
+          </SuperAdminRoute>
+        }
+      />
+      <Route
+        path="/super-admin/profile"
+        element={
+          <SuperAdminRoute>
+            <Profile />
+          </SuperAdminRoute>
+        }
+      />
+      <Route
+        path="/super-admin/preferences"
+        element={
+          <SuperAdminRoute>
+            <Preferences />
           </SuperAdminRoute>
         }
       />
