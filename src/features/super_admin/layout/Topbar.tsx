@@ -1,4 +1,4 @@
-import { Bell, Search, User } from 'lucide-react';
+import { Search, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -8,12 +8,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
+import { useSelector, useDispatch } from 'react-redux';
+import type { RootState, AppDispatch } from '@/app/store';
+import { logoutUserThunk } from '@/features/auth/authSlice';
 import { NotificationBell } from '../components/NotificationBell';
+import { useNavigate } from 'react-router-dom';
 
 export function Topbar() {
+  const navigate = useNavigate();
+  const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((state: RootState) => state.auth.user);
+
+  const handleLogout = async () => {
+    await dispatch(logoutUserThunk());
+    navigate('/login');
+  };
 
   return (
     <div className="flex h-16 items-center justify-between border-b bg-background px-6">
@@ -45,10 +54,14 @@ export function Topbar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Preferences</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/super-admin/profile')}>
+              Profile
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/super-admin/preferences')}>
+              Preferences
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Log out</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

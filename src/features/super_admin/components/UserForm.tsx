@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import type { UserListItem, CreateUserDto, Role } from '@/types/admin';
+import type { UserListItem, Role } from '@/types/admin';
 
 const userFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -29,8 +29,8 @@ const userFormSchema = z.object({
   hotelId: z.number().nullable().optional(),
   phoneNumber: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
-  generatePassword: z.boolean().default(true),
-  isActive: z.boolean().default(true),
+  generatePassword: z.boolean(),
+  isActive: z.boolean(),
 });
 
 type UserFormValues = z.infer<typeof userFormSchema>;
