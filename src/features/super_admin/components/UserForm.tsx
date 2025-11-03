@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { useEffect, useState } from 'react';
 import {
   Form,
   FormControl,
@@ -21,6 +22,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import type { UserListItem, Role } from '@/types/admin';
+import { createUser, updateUser, getHotels } from '../api/superAdminApi';
+import { toast } from 'sonner';
 
 const userFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -43,15 +46,22 @@ interface UserFormProps {
 
 const roles: Role[] = ['client', 'receptionist', 'manager', 'admin', 'super_admin'];
 
-// Mock hotels - will be replaced with API call
-const mockHotels = [
-  { id: 1, name: 'Grand Hotel' },
-  { id: 2, name: 'Plaza Hotel' },
-  { id: 3, name: 'Ocean View Hotel' },
-];
-
 export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const isEditing = !!user;
+  const [hotels, setHotels] = useState<{ id: number; name: string }[]>([]);
+
+  useEffect(() => {
+    const fetchHotels = async () => {
+      try {
+        const response = await getHotels({ perPage: 100 });
+        setHotels(response.data.map((h) => ({ id: h.id, name: h.name })));
+      } catch (error) {
+        console.error('Failed to load hotels:', error);
+        toast.error('Failed to load hotels');
+      }
+    };
+    fetchHotels();
+  }, []);
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -78,15 +88,42 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
 
   const onSubmit = async (values: UserFormValues) => {
     try {
-      // TODO: Replace with actual API call
-      console.log('Submitting user form:', values);
-      
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
+      if (isEditing && user) {
+        // Update user - don't send password if not provided
+        const updateData: any = {
+          name: values.name,
+          email: values.email,
+          role: values.role,
+          hotelId: values.hotelId || null,
+          phoneNumber: values.phoneNumber || undefined,
+          active: values.isActive,
+        };
+        if (values.password && values.password.length >= 8) {
+          updateData.password = values.password;
+        }
+        await updateUser(user.id, updateData);
+        toast.success('User updated successfully');
+      } else {
+        // Create user
+        const createData = {
+          name: values.name,
+          email: values.email,
+          role: values.role,
+          hotelId: values.hotelId || null,
+          phoneNumber: values.phoneNumber || undefined,
+          generatePassword: values.generatePassword,
+          active: values.isActive,
+          ...(values.generatePassword ? {} : { password: values.password }),
+        };
+        await createUser(createData);
+        toast.success('User created successfully');
+      }
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting form:', error);
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to save user';
+      toast.error(errorMessage);
     }
   };
 
@@ -181,7 +218,7 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="null">No Hotel</SelectItem>
-                    {mockHotels.map((hotel) => (
+                    {hotels.map((hotel) => (
                       <SelectItem key={hotel.id} value={hotel.id.toString()}>
                         {hotel.name}
                       </SelectItem>

@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { MoreHorizontal, Plus, Search, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -44,44 +45,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+// Note: Using Dialog instead of AlertDialog if alert-dialog doesn't exist
 import { HotelForm } from '@/features/super_admin/components/HotelForm';
 import type { HotelListItem } from '@/types/admin';
+import { getHotels, deleteHotel } from '../api/superAdminApi';
+import { toast } from 'sonner';
 
-// Mock data
-const mockHotels: HotelListItem[] = [
-  {
-    id: 1,
-    name: 'Grand Hotel',
-    address: '123 Main St, City, State 12345',
-    timezone: 'America/New_York',
-    adminName: 'John Admin',
-    roomsCount: 120,
-    phoneNumber: '+1234567890',
-    email: 'info@grandhotel.com',
-  },
-  {
-    id: 2,
-    name: 'Plaza Hotel',
-    address: '456 Park Ave, City, State 12345',
-    timezone: 'America/Los_Angeles',
-    adminName: 'Jane Admin',
-    roomsCount: 85,
-    phoneNumber: '+1234567891',
-    email: 'info@plazahotel.com',
-  },
-  {
-    id: 3,
-    name: 'Ocean View Hotel',
-    address: '789 Beach Blvd, City, State 12345',
-    timezone: 'America/Chicago',
-    adminName: null,
-    roomsCount: 200,
-    phoneNumber: '+1234567892',
-    email: 'info@oceanview.com',
-  },
-];
-
-const columns: ColumnDef<HotelListItem>[] = [
+const createColumns = (
+  handleEditHotel: (hotel: HotelListItem) => void,
+  handleDeleteHotel: (hotel: HotelListItem) => void
+): ColumnDef<HotelListItem>[] => [
   {
     accessorKey: 'name',
     header: 'Name',
@@ -138,18 +111,12 @@ const columns: ColumnDef<HotelListItem>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => console.log('View', hotel.id)}>
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => console.log('Edit', hotel.id)}>
+            <DropdownMenuItem onClick={() => handleEditHotel(hotel)}>
               Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => console.log('Assign Admin', hotel.id)}>
-              Assign Admin
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => console.log('Delete', hotel.id)}
+              onClick={() => handleDeleteHotel(hotel)}
               className="text-destructive"
             >
               <Trash2 className="mr-2 h-4 w-4" />
@@ -170,13 +137,103 @@ export function Hotels() {
   const [adminFilter, setAdminFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedHotel, setSelectedHotel] = useState<HotelListItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hotels, setHotels] = useState<HotelListItem[]>([]);
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    hotel: HotelListItem | null;
+  }>({ open: false, hotel: null });
 
-  const data = mockHotels;
+  // Fetch hotels
+  useEffect(() => {
+    const fetchHotels = async () => {
+      try {
+        setIsLoading(true);
+        const response = await getHotels({ perPage: 100 });
+        setHotels(response.data);
+      } catch (error) {
+        console.error('Failed to load hotels:', error);
+        toast.error('Failed to load hotels');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchHotels();
+  }, []);
+
+  // Create a new array reference when hotels change to ensure React Table detects the update
+  const data = useMemo(() => {
+    return [...hotels];
+  }, [hotels]);
 
   // Memoize timezones list to prevent recalculation on every render
   const timezones = useMemo(() => {
-    return Array.from(new Set(mockHotels.map((h) => h.timezone)));
-  }, []);
+    return Array.from(new Set(hotels.map((h) => h.timezone)));
+  }, [hotels]);
+
+  const handleCreateHotel = () => {
+    setSelectedHotel(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditHotel = (hotel: HotelListItem) => {
+    setSelectedHotel(hotel);
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteHotel = (hotel: HotelListItem) => {
+    setDeleteDialog({ open: true, hotel });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteDialog.hotel) return;
+    const hotelToDelete = deleteDialog.hotel;
+    try {
+      await deleteHotel(hotelToDelete.id);
+      toast.success('Hotel deleted successfully');
+      setDeleteDialog({ open: false, hotel: null });
+      // Refresh hotels list - remove from state immediately and then fetch fresh data
+      setHotels((prevHotels) => prevHotels.filter((h) => h.id !== hotelToDelete.id));
+      // Fetch fresh data to ensure sync
+      const response = await getHotels({ perPage: 100 });
+      setHotels(response.data);
+    } catch (error: any) {
+      console.error('Failed to delete hotel:', error);
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to delete hotel';
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleFormSuccess = async (updatedHotel?: HotelListItem) => {
+    setIsDialogOpen(false);
+    setSelectedHotel(null);
+
+    if (updatedHotel) {
+      // Optimistically update the state immediately with the updated hotel from API
+      setHotels((prevHotels) => {
+        const index = prevHotels.findIndex((h) => h.id === updatedHotel.id);
+        if (index !== -1) {
+          const newHotels = [...prevHotels];
+          newHotels[index] = updatedHotel;
+          return newHotels;
+        } else {
+          return [...prevHotels, updatedHotel];
+        }
+      });
+    }
+
+    // Refetch to ensure we have the latest data from the backend
+    try {
+      const response = await getHotels({ perPage: 100 });
+      setHotels(response.data);
+    } catch (error) {
+      console.error('Failed to refresh hotels:', error);
+      toast.error('Failed to refresh hotel list');
+    }
+  };
+
+  const columns = createColumns(handleEditHotel, handleDeleteHotel);
 
   // Update column filters when external filter states change
   useEffect(() => {
@@ -203,28 +260,19 @@ export function Hotels() {
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onGlobalFilterChange: setGlobalFilter,
+    // Force table to update when data changes
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter,
+    },
     globalFilterFn: (row, _columnId, filterValue) => {
       const searchValue = filterValue.toLowerCase();
       const name = row.original.name?.toLowerCase() || '';
       const address = row.original.address?.toLowerCase() || '';
       return name.includes(searchValue) || address.includes(searchValue);
     },
-    state: {
-      sorting,
-      columnFilters,
-      globalFilter,
-    },
   });
-
-  const handleCreateHotel = () => {
-    setSelectedHotel(null);
-    setIsDialogOpen(true);
-  };
-
-  const handleEditHotel = (hotel: HotelListItem) => {
-    setSelectedHotel(hotel);
-    setIsDialogOpen(true);
-  };
 
   return (
     <div className="space-y-6">
@@ -254,14 +302,22 @@ export function Hotels() {
               </DialogDescription>
             </DialogHeader>
             <HotelForm
+              key={selectedHotel ? `hotel-${selectedHotel.id}` : 'hotel-new'}
               hotel={selectedHotel}
-              onSuccess={() => setIsDialogOpen(false)}
+              onSuccess={handleFormSuccess}
               onCancel={() => setIsDialogOpen(false)}
             />
           </DialogContent>
         </Dialog>
       </div>
 
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      ) : (
+        <>
       {/* Filters */}
       <div className="flex flex-wrap gap-4">
         <div className="relative flex-1 min-w-[200px]">
@@ -364,6 +420,37 @@ export function Hotels() {
           Next
         </Button>
       </div>
+        </>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({ open, hotel: null })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Hotel</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deleteDialog.hotel?.name}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialog({ open: false, hotel: null })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+            >
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

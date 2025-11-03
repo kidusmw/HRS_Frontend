@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import { Building2, Users, Calendar, Bed, TrendingUp } from 'lucide-react';
 import { SummaryCard } from '../components/SummaryCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import type { DashboardMetrics, AuditLogItem, NotificationItem } from '@/types/admin';
 import {
@@ -13,70 +15,8 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-
-// Mock data - will be replaced with API calls
-const mockMetrics: DashboardMetrics = {
-  hotels: 12,
-  usersByRole: {
-    client: 245,
-    receptionist: 15,
-    manager: 8,
-    admin: 5,
-    super_admin: 1,
-  },
-  totalBookings: 1847,
-  rooms: {
-    available: 342,
-    occupied: 158,
-  },
-};
-
-const mockNotifications: NotificationItem[] = [
-  {
-    id: 1,
-    message: 'Full system backup completed successfully',
-    type: 'backup',
-    status: 'unread',
-    timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(),
-  },
-  {
-    id: 2,
-    message: 'New user registered: john@example.com',
-    type: 'user',
-    status: 'unread',
-    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    hotelId: 1,
-    hotelName: 'Grand Hotel',
-  },
-];
-
-const mockActivity: AuditLogItem[] = [
-  {
-    id: 1,
-    timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-    userName: 'John Admin',
-    userId: 1,
-    action: 'user.created',
-    hotelId: 1,
-    hotelName: 'Grand Hotel',
-  },
-  {
-    id: 2,
-    timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    userName: 'Jane Admin',
-    userId: 2,
-    action: 'hotel.updated',
-    hotelId: 2,
-    hotelName: 'Plaza Hotel',
-  },
-  {
-    id: 3,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    userName: 'System',
-    userId: 0,
-    action: 'backup.started',
-  },
-];
+import { getDashboardMetrics, getNotifications, getLogs } from '../api/superAdminApi';
+import { toast } from 'sonner';
 
 // Mock booking data for chart (last 6 months)
 const bookingChartData = [
@@ -117,13 +57,54 @@ const occupancyChartConfig = {
 } satisfies ChartConfig;
 
 export function Dashboard() {
-  const isLoading = false;
-  const metrics = mockMetrics;
-  const notifications = mockNotifications;
-  const activity = mockActivity;
+  const [isLoading, setIsLoading] = useState(true);
+  const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [activity, setActivity] = useState<AuditLogItem[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const [metricsData, notificationsData, logsData] = await Promise.all([
+          getDashboardMetrics(),
+          getNotifications({ limit: 10 }).catch(() => ({ data: [] })),
+          getLogs({ page: 1, perPage: 10 }).catch(() => ({ data: [] })),
+        ]);
+        setMetrics(metricsData);
+        setNotifications(notificationsData?.data || []);
+        setActivity(logsData?.data || []);
+      } catch (error) {
+        console.error('Failed to load dashboard data:', error);
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (isLoading || !metrics) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-9 w-48" />
+          <Skeleton className="h-5 w-64 mt-2" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const roomOccupancyRate =
-    metrics.rooms.occupied / (metrics.rooms.available + metrics.rooms.occupied);
+    metrics.rooms.occupied + metrics.rooms.available > 0
+      ? metrics.rooms.occupied / (metrics.rooms.available + metrics.rooms.occupied)
+      : 0;
 
   return (
     <div className="space-y-6">
@@ -307,7 +288,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[300px]">
-              {notifications.length === 0 ? (
+              {!notifications || notifications.length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">
                   No notifications
                 </div>
@@ -362,7 +343,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent>
             <ScrollArea className="h-[300px]">
-              {activity.length === 0 ? (
+              {!activity || activity.length === 0 ? (
                 <div className="py-8 text-center text-sm text-muted-foreground">
                   No recent activity
                 </div>

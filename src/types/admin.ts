@@ -27,6 +27,7 @@ export interface HotelListItem {
   address: string;
   timezone: string;
   adminName?: string | null;
+  adminId?: number | null;
   roomsCount: number;
   phoneNumber?: string | null;
   email?: string | null;

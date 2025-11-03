@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   flexRender,
   getCoreRowModel,
@@ -27,6 +27,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { MoreHorizontal, Plus, Search } from 'lucide-react';
 import {
   DropdownMenu,
@@ -40,42 +42,22 @@ import { UserForm } from '@/features/super_admin/components/UserForm';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
 import type { UserListItem, Role } from '@/types/admin';
 import { formatDistanceToNow } from 'date-fns';
-
-// Mock data
-const mockUsers: UserListItem[] = [
-  {
-    id: 1,
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: 'admin',
-    hotelId: 1,
-    hotelName: 'Grand Hotel',
-    isActive: true,
-    lastActiveAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-    phoneNumber: '+1234567890',
-  },
-  {
-    id: 2,
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    role: 'manager',
-    hotelId: 1,
-    hotelName: 'Grand Hotel',
-    isActive: true,
-    lastActiveAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    phoneNumber: '+1234567891',
-  },
-  {
-    id: 3,
-    name: 'Bob Johnson',
-    email: 'bob@example.com',
-    role: 'receptionist',
-    hotelId: 2,
-    hotelName: 'Plaza Hotel',
-    isActive: false,
-    phoneNumber: '+1234567892',
-  },
-];
+import {
+  getUsers,
+  activateUser,
+  deactivateUser,
+  resetUserPassword,
+  getHotels,
+} from '../api/superAdminApi';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const roles: Role[] = ['client', 'receptionist', 'manager', 'admin', 'super_admin'];
 
@@ -92,7 +74,11 @@ function getRoleBadgeVariant(role: Role) {
   }
 }
 
-const columns: ColumnDef<UserListItem>[] = [
+const createColumns = (
+  handleEditUser: (user: UserListItem) => void,
+  handleToggleActive: (user: UserListItem) => void,
+  handleResetPassword: (userId: number) => void
+): ColumnDef<UserListItem>[] => [
   {
     accessorKey: 'name',
     header: 'Name',
@@ -174,19 +160,14 @@ const columns: ColumnDef<UserListItem>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={() => console.log('View', user.id)}>
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => console.log('Edit', user.id)}>
+            <DropdownMenuItem onClick={() => handleEditUser(user)}>
               Edit
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => console.log('Toggle Active', user.id)}
-            >
+            <DropdownMenuItem onClick={() => handleToggleActive(user)}>
               {user.isActive ? 'Deactivate' : 'Activate'}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => console.log('Reset Password', user.id)}>
+            <DropdownMenuItem onClick={() => handleResetPassword(user.id)}>
               Reset Password
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -205,21 +186,95 @@ export function Users() {
   const [hotelFilter, setHotelFilter] = useState<string>('all');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [users, setUsers] = useState<UserListItem[]>([]);
+  const [hotels, setHotels] = useState<{ id: string; name: string }[]>([]);
+  const [resetPasswordDialog, setResetPasswordDialog] = useState<{
+    open: boolean;
+    userId: number | null;
+    password: string | null;
+  }>({ open: false, userId: null, password: null });
+
+  // Fetch users and hotels
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const [usersResponse, hotelsResponse] = await Promise.all([
+          getUsers({ perPage: 100 }),
+          getHotels({ perPage: 100 }),
+        ]);
+        setUsers(usersResponse.data);
+        setHotels(
+          hotelsResponse.data.map((h) => ({
+            id: h.id.toString(),
+            name: h.name,
+          }))
+        );
+      } catch (error) {
+        console.error('Failed to load users:', error);
+        toast.error('Failed to load users');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   // Sync external filter states with TanStack Table columnFilters
-  const data = mockUsers;
+  const data = users;
 
-  // Memoize hotels list to prevent recalculation on every render
-  const hotels = useMemo(() => {
-    const uniqueHotels = Array.from(new Set(mockUsers.map((u) => u.hotelName).filter(Boolean)));
-    return uniqueHotels.map((hotelName) => {
-      const user = mockUsers.find((u) => u.hotelName === hotelName);
-      return {
-        name: hotelName,
-        id: user?.hotelId?.toString() || '',
-      };
-    });
-  }, []);
+  const handleEditUser = (user: UserListItem) => {
+    setSelectedUser(user);
+    setIsDrawerOpen(true);
+  };
+
+  const handleToggleActive = async (user: UserListItem) => {
+    try {
+      if (user.isActive) {
+        await deactivateUser(user.id);
+        toast.success('User deactivated successfully');
+      } else {
+        await activateUser(user.id);
+        toast.success('User activated successfully');
+      }
+      // Refresh users list
+      const response = await getUsers({ perPage: 100 });
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Failed to toggle user status:', error);
+      toast.error('Failed to update user status');
+    }
+  };
+
+  const handleResetPassword = async (userId: number) => {
+    try {
+      const response = await resetUserPassword(userId);
+      setResetPasswordDialog({
+        open: true,
+        userId,
+        password: response.password,
+      });
+      toast.success('Password reset successfully');
+    } catch (error) {
+      console.error('Failed to reset password:', error);
+      toast.error('Failed to reset password');
+    }
+  };
+
+  const handleFormSuccess = async () => {
+    setIsDrawerOpen(false);
+    setSelectedUser(null);
+    // Refresh users list
+    try {
+      const response = await getUsers({ perPage: 100 });
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Failed to refresh users:', error);
+    }
+  };
+
+  const columns = createColumns(handleEditUser, handleToggleActive, handleResetPassword);
 
   // Update column filters when external filter states change
   useEffect(() => {
@@ -267,11 +322,6 @@ export function Users() {
     setIsDrawerOpen(true);
   };
 
-  const handleEditUser = (user: UserListItem) => {
-    setSelectedUser(user);
-    setIsDrawerOpen(true);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -288,17 +338,27 @@ export function Users() {
               Create User
             </Button>
           </DrawerTrigger>
-          <DrawerContent>
-            <div className="mx-auto w-full max-w-2xl p-6">
-              <UserForm
-                user={selectedUser}
-                onSuccess={() => setIsDrawerOpen(false)}
-                onCancel={() => setIsDrawerOpen(false)}
-              />
-            </div>
+          <DrawerContent className="flex flex-col max-h-[90vh]">
+            <ScrollArea className="flex-1 overflow-auto">
+              <div className="mx-auto w-full max-w-2xl p-6">
+                <UserForm
+                  user={selectedUser}
+                  onSuccess={handleFormSuccess}
+                  onCancel={() => setIsDrawerOpen(false)}
+                />
+              </div>
+            </ScrollArea>
           </DrawerContent>
         </Drawer>
       </div>
+
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      ) : (
+        <>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4">
@@ -415,6 +475,48 @@ export function Users() {
           Next
         </Button>
       </div>
+        </>
+      )}
+
+      {/* Reset Password Dialog */}
+      <Dialog
+        open={resetPasswordDialog.open}
+        onOpenChange={(open: boolean) =>
+          setResetPasswordDialog({ open, userId: null, password: null })
+        }
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Password Reset</DialogTitle>
+            <DialogDescription>
+              The password has been reset. Please copy and share this password with the user.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md bg-muted p-4">
+            <p className="font-mono text-sm break-all">{resetPasswordDialog.password}</p>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                if (resetPasswordDialog.password) {
+                  navigator.clipboard.writeText(resetPasswordDialog.password);
+                  toast.success('Password copied to clipboard');
+                }
+              }}
+            >
+              Copy Password
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setResetPasswordDialog({ open: false, userId: null, password: null })
+              }
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
