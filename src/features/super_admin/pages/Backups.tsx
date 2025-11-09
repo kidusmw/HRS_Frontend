@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
@@ -165,20 +164,54 @@ export function Backups() {
   const [isRunningBackup, setIsRunningBackup] = useState(false);
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [hotels, setHotels] = useState<{ id: number; name: string }[]>([]);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    perPage: 6,
+    total: 0,
+    lastPage: 1,
+  });
 
-  // Fetch backups and hotels
+  // Fetch hotels (only once)
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchHotels = async () => {
       try {
-        setIsLoading(true);
-        const [backupsResponse, hotelsResponse] = await Promise.all([
-          getBackups({ perPage: 50 }),
-          getHotels({ perPage: 100 }),
-        ]);
-        setBackups(backupsResponse.data);
+        const hotelsResponse = await getHotels({ perPage: 100 });
         setHotels(
           hotelsResponse.data.map((h) => ({ id: h.id, name: h.name }))
         );
+      } catch (error) {
+        console.error('Failed to load hotels:', error);
+      }
+    };
+    fetchHotels();
+  }, []);
+
+  // Fetch backups with pagination
+  useEffect(() => {
+    const fetchBackups = async () => {
+      try {
+        setIsLoading(true);
+        const response = await getBackups({
+          page: pagination.page,
+          perPage: pagination.perPage,
+        });
+        setBackups(response.data);
+        // Extract pagination info from response
+        if (response.meta && typeof response.meta === 'object') {
+          const meta = response.meta as {
+            total?: number;
+            last_page?: number;
+            per_page?: number;
+            current_page?: number;
+          };
+          setPagination((prev) => ({
+            ...prev,
+            total: meta.total ?? prev.total,
+            lastPage: meta.last_page ?? prev.lastPage,
+            perPage: meta.per_page ?? prev.perPage,
+            page: meta.current_page ?? prev.page,
+          }));
+        }
       } catch (error) {
         console.error('Failed to load backups:', error);
         toast.error('Failed to load backups');
@@ -186,8 +219,8 @@ export function Backups() {
         setIsLoading(false);
       }
     };
-    fetchData();
-  }, []);
+    fetchBackups();
+  }, [pagination.page, pagination.perPage]);
 
   const data = useMemo(() => backups, [backups]);
 
@@ -222,18 +255,42 @@ export function Backups() {
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
+    manualPagination: true,
+    pageCount: pagination.lastPage,
     state: {
       sorting,
+      pagination: {
+        pageIndex: pagination.page - 1,
+        pageSize: pagination.perPage,
+      },
     },
   });
 
   const refreshBackups = async () => {
     try {
-      const response = await getBackups({ perPage: 50 });
+      const response = await getBackups({
+        page: pagination.page,
+        perPage: pagination.perPage,
+      });
       setBackups(response.data);
+      // Extract pagination info from response
+      if (response.meta && typeof response.meta === 'object') {
+        const meta = response.meta as {
+          total?: number;
+          last_page?: number;
+          per_page?: number;
+          current_page?: number;
+        };
+        setPagination((prev) => ({
+          ...prev,
+          total: meta.total ?? prev.total,
+          lastPage: meta.last_page ?? prev.lastPage,
+          perPage: meta.per_page ?? prev.perPage,
+          page: meta.current_page ?? prev.page,
+        }));
+      }
     } catch (error) {
       console.error('Failed to refresh backups:', error);
     }
@@ -242,13 +299,29 @@ export function Backups() {
   const handleFullBackup = async () => {
     try {
       setIsRunningBackup(true);
-      await runFullBackup();
-      toast.success('Full backup started successfully');
+      const response = await runFullBackup();
+      const newBackup = response.data;
+      
+      // Ensure backup has 'running' status for display
+      const backupWithRunningStatus = { ...newBackup, status: 'running' as const };
+      
+      // Immediately add backup with 'running' status
+      setBackups((prev) => [backupWithRunningStatus, ...prev]);
       setIsFullBackupDialogOpen(false);
-      // Refresh backups list after a short delay to allow backup to process
+      toast.success('Full backup started successfully');
+      
+      // After 5 seconds, update status to 'success'
       setTimeout(() => {
+        setBackups((prev) =>
+          prev.map((backup) =>
+            backup.id === backupWithRunningStatus.id
+              ? { ...backup, status: 'success' as const }
+              : backup
+          )
+        );
+        // Refresh to get actual backup data from server
         refreshBackups();
-      }, 2000);
+      }, 5000);
     } catch (error: any) {
       console.error('Backup failed:', error);
       const errorMessage =
@@ -264,14 +337,30 @@ export function Backups() {
     try {
       setIsRunningBackup(true);
       const hotelId = parseInt(selectedHotelId);
-      await runHotelBackup(hotelId);
-      toast.success('Hotel backup started successfully');
+      const response = await runHotelBackup(hotelId);
+      const newBackup = response.data;
+      
+      // Ensure backup has 'running' status for display
+      const backupWithRunningStatus = { ...newBackup, status: 'running' as const };
+      
+      // Immediately add backup with 'running' status
+      setBackups((prev) => [backupWithRunningStatus, ...prev]);
       setIsHotelBackupDialogOpen(false);
       setSelectedHotelId('');
-      // Refresh backups list after a short delay
+      toast.success('Hotel backup started successfully');
+      
+      // After 5 seconds, update status to 'success'
       setTimeout(() => {
+        setBackups((prev) =>
+          prev.map((backup) =>
+            backup.id === backupWithRunningStatus.id
+              ? { ...backup, status: 'success' as const }
+              : backup
+          )
+        );
+        // Refresh to get actual backup data from server
         refreshBackups();
-      }, 2000);
+      }, 5000);
     } catch (error: any) {
       console.error('Backup failed:', error);
       const errorMessage =
@@ -462,23 +551,43 @@ export function Backups() {
           )}
 
           {/* Pagination */}
-          <div className="flex items-center justify-end space-x-2 mt-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              Next
-            </Button>
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-sm text-muted-foreground">
+              Showing {backups.length > 0 ? (pagination.page - 1) * pagination.perPage + 1 : 0} to{' '}
+              {Math.min(pagination.page * pagination.perPage, pagination.total)} of{' '}
+              {pagination.total} backups
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                disabled={pagination.page <= 1}
+              >
+                Previous
+              </Button>
+              {Array.from({ length: Math.min(10, pagination.lastPage) }, (_, i) => i + 1).map(
+                (pageNum) => (
+                  <Button
+                    key={pageNum}
+                    variant={pagination.page === pageNum ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setPagination((prev) => ({ ...prev, page: pageNum }))}
+                    className="min-w-[40px]"
+                  >
+                    {pageNum}
+                  </Button>
+                )
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                disabled={pagination.page >= pagination.lastPage}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
