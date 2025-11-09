@@ -106,6 +106,10 @@ export const resetUserPassword = async (
   return response.data;
 };
 
+export const deleteUser = async (id: number): Promise<void> => {
+  await api.delete(`${BASE_URL}/users/${id}`);
+};
+
 // Hotels
 export const getHotels = async (params?: {
   search?: string;

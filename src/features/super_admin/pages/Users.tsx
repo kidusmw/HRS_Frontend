@@ -47,6 +47,7 @@ import {
   activateUser,
   deactivateUser,
   resetUserPassword,
+  deleteUser,
   getHotels,
 } from '../api/superAdminApi';
 import { toast } from 'sonner';
@@ -77,7 +78,8 @@ function getRoleBadgeVariant(role: Role) {
 const createColumns = (
   handleEditUser: (user: UserListItem) => void,
   handleToggleActive: (user: UserListItem) => void,
-  handleResetPassword: (userId: number) => void
+  handleResetPassword: (userId: number) => void,
+  handleDeleteUser: (user: UserListItem) => void
 ): ColumnDef<UserListItem>[] => [
   {
     accessorKey: 'name',
@@ -186,6 +188,13 @@ const createColumns = (
             <DropdownMenuItem onClick={() => handleResetPassword(user.id)}>
               Reset Password
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => handleDeleteUser(user)}
+              className="text-destructive focus:text-destructive"
+            >
+              Delete
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       );
@@ -210,6 +219,10 @@ export function Users() {
     userId: number | null;
     password: string | null;
   }>({ open: false, userId: null, password: null });
+  const [deleteDialog, setDeleteDialog] = useState<{
+    open: boolean;
+    user: UserListItem | null;
+  }>({ open: false, user: null });
 
   // Fetch users and hotels
   useEffect(() => {
@@ -290,7 +303,31 @@ export function Users() {
     }
   };
 
-  const columns = createColumns(handleEditUser, handleToggleActive, handleResetPassword);
+  const handleDeleteUser = (user: UserListItem) => {
+    setDeleteDialog({ open: true, user });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteDialog.user) return;
+    const userToDelete = deleteDialog.user;
+    try {
+      await deleteUser(userToDelete.id);
+      toast.success('User deleted successfully');
+      setDeleteDialog({ open: false, user: null });
+      // Refresh users list - remove from state immediately and then fetch fresh data
+      setUsers((prevUsers) => prevUsers.filter((u) => u.id !== userToDelete.id));
+      // Fetch fresh data to ensure sync
+      const response = await getUsers({ perPage: 100 });
+      setUsers(response.data);
+    } catch (error: any) {
+      console.error('Failed to delete user:', error);
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to delete user';
+      toast.error(errorMessage);
+    }
+  };
+
+  const columns = createColumns(handleEditUser, handleToggleActive, handleResetPassword, handleDeleteUser);
 
   // Update column filters when external filter states change
   useEffect(() => {
@@ -529,6 +566,37 @@ export function Users() {
               }
             >
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialog.open}
+        onOpenChange={(open: boolean) => setDeleteDialog({ open, user: null })}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete{' '}
+              <strong>{deleteDialog.user?.name}</strong> ({deleteDialog.user?.email})?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialog({ open: false, user: null })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+            >
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>
