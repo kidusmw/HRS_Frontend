@@ -134,11 +134,11 @@ export const getHotel = async (id: number): Promise<{ data: HotelListItem }> => 
 export const createHotel = async (data: CreateHotelDto): Promise<{ data: HotelListItem }> => {
   const formData = new FormData();
   formData.append('name', data.name);
-  formData.append('address', data.address);
+  formData.append('city', data.city);
+  formData.append('country', data.country);
   formData.append('phone', data.phoneNumber);
   formData.append('email', data.email);
   if (data.description) formData.append('description', data.description);
-  formData.append('timezone', data.timezone);
   if (data.logo) formData.append('logo', data.logo);
   if (data.adminId !== undefined && data.adminId !== null) {
     formData.append('primary_admin_id', data.adminId.toString());
@@ -163,11 +163,11 @@ export const updateHotel = async (
   const payload: any = {};
   
   if (data.name) payload.name = data.name;
-  if (data.address) payload.address = data.address;
+  if (data.city) payload.city = data.city;
+  if (data.country) payload.country = data.country;
   if (data.phoneNumber) payload.phone = data.phoneNumber;
   if (data.email) payload.email = data.email;
   if (data.description !== undefined) payload.description = data.description || null;
-  if (data.timezone) payload.timezone = data.timezone;
   if (data.adminId !== undefined) {
     payload.primary_admin_id = data.adminId ?? null;
   }

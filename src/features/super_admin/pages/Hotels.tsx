@@ -60,15 +60,12 @@ const createColumns = (
     header: 'Name',
   },
   {
-    accessorKey: 'address',
-    header: 'Address',
+    accessorKey: 'city',
+    header: 'City',
   },
   {
-    accessorKey: 'timezone',
-    header: 'Timezone',
-    filterFn: (row, id, value) => {
-      return row.getValue(id) === value;
-    },
+    accessorKey: 'country',
+    header: 'Country',
   },
   {
     accessorKey: 'adminName',
@@ -133,7 +130,6 @@ export function Hotels() {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [globalFilter, setGlobalFilter] = useState('');
-  const [timezoneFilter, setTimezoneFilter] = useState<string>('all');
   const [adminFilter, setAdminFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedHotel, setSelectedHotel] = useState<HotelListItem | null>(null);
@@ -164,11 +160,6 @@ export function Hotels() {
   // Create a new array reference when hotels change to ensure React Table detects the update
   const data = useMemo(() => {
     return [...hotels];
-  }, [hotels]);
-
-  // Memoize timezones list to prevent recalculation on every render
-  const timezones = useMemo(() => {
-    return Array.from(new Set(hotels.map((h) => h.timezone)));
   }, [hotels]);
 
   const handleCreateHotel = () => {
@@ -238,9 +229,6 @@ export function Hotels() {
   // Update column filters when external filter states change
   useEffect(() => {
     const filters: ColumnFiltersState = [];
-    if (timezoneFilter !== 'all') {
-      filters.push({ id: 'timezone', value: timezoneFilter });
-    }
     if (adminFilter !== 'all') {
       filters.push({ 
         id: 'hasAdmin', 
@@ -248,7 +236,7 @@ export function Hotels() {
       });
     }
     setColumnFilters(filters);
-  }, [timezoneFilter, adminFilter]);
+  }, [adminFilter]);
 
   const table = useReactTable({
     data,
@@ -269,8 +257,9 @@ export function Hotels() {
     globalFilterFn: (row, _columnId, filterValue) => {
       const searchValue = filterValue.toLowerCase();
       const name = row.original.name?.toLowerCase() || '';
-      const address = row.original.address?.toLowerCase() || '';
-      return name.includes(searchValue) || address.includes(searchValue);
+      const city = row.original.city?.toLowerCase() || '';
+      const country = row.original.country?.toLowerCase() || '';
+      return name.includes(searchValue) || city.includes(searchValue) || country.includes(searchValue);
     },
   });
 
@@ -329,19 +318,6 @@ export function Hotels() {
             className="pl-10"
           />
         </div>
-        <Select value={timezoneFilter} onValueChange={setTimezoneFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="All Timezones" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Timezones</SelectItem>
-            {timezones.map((tz) => (
-              <SelectItem key={tz} value={tz}>
-                {tz}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Select value={adminFilter} onValueChange={setAdminFilter}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Admin Status" />
