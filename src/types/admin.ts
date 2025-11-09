@@ -7,6 +7,8 @@ export interface DashboardMetrics {
   usersByRole: Record<Role, number>;
   totalBookings: number;
   rooms: { available: number; occupied: number };
+  bookingTrends?: Array<{ month: string; bookings: number; revenue: number }>;
+  occupancyTrends?: Array<{ month: string; occupied: number; available: number }>;
 }
 
 export interface UserListItem {

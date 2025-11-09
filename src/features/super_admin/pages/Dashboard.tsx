@@ -18,25 +18,6 @@ import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { getDashboardMetrics, getNotifications, getLogs } from '../api/superAdminApi';
 import { toast } from 'sonner';
 
-// Mock booking data for chart (last 6 months)
-const bookingChartData = [
-  { month: 'Jan', bookings: 245, revenue: 45200 },
-  { month: 'Feb', bookings: 312, revenue: 58700 },
-  { month: 'Mar', bookings: 289, revenue: 53400 },
-  { month: 'Apr', bookings: 356, revenue: 67100 },
-  { month: 'May', bookings: 423, revenue: 79800 },
-  { month: 'Jun', bookings: 398, revenue: 75100 },
-];
-
-// Mock room occupancy data for chart (last 6 months)
-const occupancyChartData = [
-  { month: 'Jan', occupied: 120, available: 380 },
-  { month: 'Feb', occupied: 145, available: 355 },
-  { month: 'Mar', occupied: 138, available: 362 },
-  { month: 'Apr', occupied: 162, available: 338 },
-  { month: 'May', occupied: 175, available: 325 },
-  { month: 'Jun', occupied: 158, available: 342 },
-];
 
 const bookingChartConfig = {
   bookings: {
@@ -162,7 +143,7 @@ export function Dashboard() {
             <ChartContainer config={bookingChartConfig} className="min-h-[200px] w-full">
               <AreaChart
                 accessibilityLayer
-                data={bookingChartData}
+                data={metrics.bookingTrends || []}
                 margin={{
                   left: 0,
                   right: 0,
@@ -211,7 +192,7 @@ export function Dashboard() {
             <ChartContainer config={occupancyChartConfig} className="min-h-[200px] w-full">
               <AreaChart
                 accessibilityLayer
-                data={occupancyChartData}
+                data={metrics.occupancyTrends || []}
                 margin={{
                   left: 0,
                   right: 0,
