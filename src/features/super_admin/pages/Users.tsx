@@ -108,7 +108,11 @@ const createColumns = (
     enableColumnFilter: false,
     cell: ({ row }) => {
       const hotelName = row.getValue('hotelName') as string | null;
-      return hotelName || <span className="text-muted-foreground">—</span>;
+      return hotelName || (
+        <Badge variant="outline" className="text-xs">
+          No assigned hotel
+        </Badge>
+      );
     },
   },
   {
@@ -125,7 +129,9 @@ const createColumns = (
       return hotelId ? (
         <span className="text-muted-foreground">{hotelId}</span>
       ) : (
-        <span className="text-muted-foreground">—</span>
+        <Badge variant="outline" className="text-xs">
+          No assigned hotel
+        </Badge>
       );
     },
   },
