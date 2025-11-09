@@ -102,6 +102,15 @@ const createColumns = (
     header: 'Hotel',
     cell: ({ row }) => {
       const hotelName = row.getValue('hotelName') as string | null;
+      const type = row.original.type;
+      // For full backups, show Badge like Status column with yellow color
+      if (!hotelName && type === 'full') {
+        return (
+          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/20 dark:text-yellow-400 dark:border-yellow-800">
+            Global
+          </Badge>
+        );
+      }
       return hotelName || <span className="text-muted-foreground">—</span>;
     },
   },
