@@ -76,9 +76,16 @@ const columns: ColumnDef<AuditLogItem>[] = [
     header: 'Action',
     cell: ({ row }) => {
       const action = row.getValue('action') as string;
+      // Format action: replace dots with spaces, handle camelCase, then capitalize
+      const formatted = action
+        .replace(/\./g, ' ') // Replace all dots with spaces
+        .replace(/([a-z])([A-Z])/g, '$1 $2') // Add space before capital letters (camelCase)
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
       return (
         <Badge variant={getActionBadgeVariant(action)}>
-          {action.replace('.', ' ').toUpperCase()}
+          {formatted}
         </Badge>
       );
     },
