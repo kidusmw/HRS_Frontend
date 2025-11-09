@@ -1,8 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
@@ -41,48 +40,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import type { AuditLogItem } from '@/types/admin';
+import { getLogs, getUsers, getHotels } from '../api/superAdminApi';
 
-// Mock data
-const mockLogs: AuditLogItem[] = [
-  {
-    id: 1,
-    timestamp: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
-    userName: 'John Admin',
-    userId: 1,
-    action: 'user.created',
-    hotelId: 1,
-    hotelName: 'Grand Hotel',
-    meta: { userId: 5, email: 'newuser@example.com' },
-  },
-  {
-    id: 2,
-    timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    userName: 'Jane Admin',
-    userId: 2,
-    action: 'hotel.updated',
-    hotelId: 2,
-    hotelName: 'Plaza Hotel',
-    meta: { fields: ['name', 'address'] },
-  },
-  {
-    id: 3,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-    userName: 'System',
-    userId: 0,
-    action: 'backup.started',
-    meta: { type: 'full' },
-  },
-  {
-    id: 4,
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-    userName: 'Bob Manager',
-    userId: 3,
-    action: 'login.success',
-    hotelId: 1,
-    hotelName: 'Grand Hotel',
-  },
-];
 
 function getActionBadgeVariant(action: string) {
   if (action.includes('created')) return 'default';
@@ -212,27 +174,124 @@ export function Logs() {
   const [userFilter, setUserFilter] = useState<string>('all');
   const [hotelFilter, setHotelFilter] = useState<string>('all');
   const [actionFilter, setActionFilter] = useState<string>('all');
-
-  const data = mockLogs.filter((log) => {
-    const logDate = new Date(log.timestamp);
-    const matchesDateFrom = !dateFrom || logDate >= dateFrom;
-    const matchesDateTo = !dateTo || logDate <= dateTo;
-    const matchesUser = userFilter === 'all' || log.userId.toString() === userFilter;
-    const matchesHotel =
-      hotelFilter === 'all' ||
-      (hotelFilter === 'global' && !log.hotelId) ||
-      log.hotelId?.toString() === hotelFilter;
-    const matchesAction =
-      actionFilter === 'all' || log.action.includes(actionFilter);
-
-    return (
-      matchesDateFrom &&
-      matchesDateTo &&
-      matchesUser &&
-      matchesHotel &&
-      matchesAction
-    );
+  const [isLoading, setIsLoading] = useState(true);
+  const [logs, setLogs] = useState<AuditLogItem[]>([]);
+  const [users, setUsers] = useState<{ id: number; name: string }[]>([]);
+  const [hotels, setHotels] = useState<{ id: number; name: string }[]>([]);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    perPage: 10,
+    total: 0,
+    lastPage: 1,
   });
+  const [actions, setActions] = useState<string[]>([]);
+
+  // Fetch users and hotels for filter dropdowns
+  useEffect(() => {
+    const fetchFilterData = async () => {
+      try {
+        const [usersResponse, hotelsResponse] = await Promise.all([
+          getUsers({ perPage: 100 }),
+          getHotels({ perPage: 100 }),
+        ]);
+        setUsers(
+          usersResponse.data.map((u) => ({ id: u.id, name: u.name }))
+        );
+        setHotels(
+          hotelsResponse.data.map((h) => ({ id: h.id, name: h.name }))
+        );
+      } catch (error) {
+        console.error('Failed to load filter data:', error);
+      }
+    };
+    fetchFilterData();
+  }, []);
+
+  // Reset pagination to page 1 when filters change
+  useEffect(() => {
+    setPagination((prev) => {
+      if (prev.page === 1) return prev; // No change needed
+      return { ...prev, page: 1 };
+    });
+  }, [dateFrom, dateTo, userFilter, hotelFilter, actionFilter]);
+
+  // Fetch logs when filters or pagination change
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        setIsLoading(true);
+        const params: {
+          userId?: number;
+          hotelId?: number;
+          action?: string;
+          from?: string;
+          to?: string;
+          page?: number;
+          perPage?: number;
+        } = {
+          page: pagination.page,
+          perPage: pagination.perPage,
+        };
+
+        if (userFilter !== 'all') {
+          params.userId = parseInt(userFilter);
+        }
+
+        if (hotelFilter === 'global') {
+          params.hotelId = 0; // Special value for global actions
+        } else if (hotelFilter !== 'all') {
+          params.hotelId = parseInt(hotelFilter);
+        }
+
+        if (actionFilter !== 'all') {
+          params.action = actionFilter;
+        }
+
+        if (dateFrom) {
+          params.from = format(dateFrom, 'yyyy-MM-dd');
+        }
+
+        if (dateTo) {
+          params.to = format(dateTo, 'yyyy-MM-dd');
+        }
+
+        const response = await getLogs(params);
+        setLogs(response.data);
+        
+        // Extract unique actions for filter dropdown
+        const uniqueActions = Array.from(
+          new Set(response.data.map((log) => log.action.split('.')[0]))
+        );
+        setActions(uniqueActions);
+
+        // Update pagination from API response
+        if (response.meta && typeof response.meta === 'object') {
+          const meta = response.meta as {
+            current_page?: number;
+            per_page?: number;
+            total?: number;
+            last_page?: number;
+          };
+          setPagination((prev) => ({
+            ...prev,
+            page: meta.current_page || prev.page,
+            perPage: meta.per_page || prev.perPage,
+            total: meta.total || 0,
+            lastPage: meta.last_page || prev.lastPage,
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to load logs:', error);
+        toast.error('Failed to load logs');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, [dateFrom, dateTo, userFilter, hotelFilter, actionFilter, pagination.page, pagination.perPage]);
+
+  const data = useMemo(() => logs, [logs]);
 
   const table = useReactTable({
     data,
@@ -240,24 +299,46 @@ export function Logs() {
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     onSortingChange: setSorting,
+    manualPagination: true,
+    pageCount: pagination.lastPage,
     state: {
       sorting,
+      pagination: {
+        pageIndex: pagination.page - 1,
+        pageSize: pagination.perPage,
+      },
     },
   });
 
-  const users = Array.from(new Set(mockLogs.map((l) => l.userName)));
-  const hotels = Array.from(
-    new Set(mockLogs.map((l) => l.hotelName).filter(Boolean))
-  );
-  const actions = Array.from(
-    new Set(mockLogs.map((l) => l.action.split('.')[0]))
-  );
-
   const handleExport = () => {
-    // TODO: Implement CSV export
-    console.log('Exporting logs to CSV...', data);
+    // Convert logs to CSV
+    const headers = ['Timestamp', 'User', 'Action', 'Hotel', 'Metadata'];
+    const rows = logs.map((log) => [
+      format(new Date(log.timestamp), 'yyyy-MM-dd HH:mm:ss'),
+      log.userName,
+      log.action,
+      log.hotelName || 'Global',
+      log.meta ? JSON.stringify(log.meta) : '',
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+      ),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `audit-logs-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('Logs exported successfully');
   };
 
   return (
@@ -321,9 +402,9 @@ export function Logs() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Users</SelectItem>
-            {users.map((user, idx) => (
-              <SelectItem key={idx} value={mockLogs.find((l) => l.userName === user)?.userId.toString() || ''}>
-                {user}
+            {users.map((user) => (
+              <SelectItem key={user.id} value={user.id.toString()}>
+                {user.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -336,9 +417,9 @@ export function Logs() {
           <SelectContent>
             <SelectItem value="all">All Hotels</SelectItem>
             <SelectItem value="global">Global Actions</SelectItem>
-            {hotels.map((hotel, idx) => (
-              <SelectItem key={idx} value={mockLogs.find((l) => l.hotelName === hotel)?.hotelId?.toString() || ''}>
-                {hotel}
+            {hotels.map((hotel) => (
+              <SelectItem key={hotel.id} value={hotel.id.toString()}>
+                {hotel.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -361,69 +442,96 @@ export function Logs() {
 
       {/* Table */}
       <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
+        {isLoading ? (
+          <div className="space-y-4 p-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
                   ))}
                 </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No logs found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id}>
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    No logs found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-end space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-muted-foreground">
+          Showing {logs.length > 0 ? (pagination.page - 1) * pagination.perPage + 1 : 0} to{' '}
+          {Math.min(pagination.page * pagination.perPage, pagination.total)} of{' '}
+          {pagination.total} logs
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+            disabled={pagination.page <= 1}
+          >
+            Previous
+          </Button>
+          {Array.from({ length: Math.min(10, pagination.lastPage) }, (_, i) => i + 1).map(
+            (pageNum) => (
+              <Button
+                key={pageNum}
+                variant={pagination.page === pageNum ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setPagination((prev) => ({ ...prev, page: pageNum }))}
+                className="min-w-[40px]"
+              >
+                {pageNum}
+              </Button>
+            )
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+            disabled={pagination.page >= pagination.lastPage}
+          >
+            Next
+          </Button>
+        </div>
       </div>
     </div>
   );
