@@ -217,8 +217,8 @@ export function Users() {
   const [resetPasswordDialog, setResetPasswordDialog] = useState<{
     open: boolean;
     userId: number | null;
-    password: string | null;
-  }>({ open: false, userId: null, password: null });
+    userEmail: string | null;
+  }>({ open: false, userId: null, userEmail: null });
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     user: UserListItem | null;
@@ -278,13 +278,14 @@ export function Users() {
 
   const handleResetPassword = async (userId: number) => {
     try {
-      const response = await resetUserPassword(userId);
+      const user = users.find((u) => u.id === userId);
+      await resetUserPassword(userId);
       setResetPasswordDialog({
         open: true,
         userId,
-        password: response.password,
+        userEmail: user?.email || null,
       });
-      toast.success('Password reset successfully');
+      toast.success('Password reset successfully. The new password has been sent to the user\'s email.');
     } catch (error) {
       console.error('Failed to reset password:', error);
       toast.error('Failed to reset password');
@@ -535,34 +536,31 @@ export function Users() {
       <Dialog
         open={resetPasswordDialog.open}
         onOpenChange={(open: boolean) =>
-          setResetPasswordDialog({ open, userId: null, password: null })
+          setResetPasswordDialog({ open, userId: null, userEmail: null })
         }
       >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Password Reset</DialogTitle>
             <DialogDescription>
-              The password has been reset. Please copy and share this password with the user.
+              The password has been reset and sent to the user's email address.
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-md bg-muted p-4">
-            <p className="font-mono text-sm break-all">{resetPasswordDialog.password}</p>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              A new password has been generated and sent to:
+            </p>
+            <p className="font-medium text-sm break-all">
+              {resetPasswordDialog.userEmail || 'N/A'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              The user will receive an email with their new password and instructions to change it.
+            </p>
           </div>
           <DialogFooter>
             <Button
-              onClick={() => {
-                if (resetPasswordDialog.password) {
-                  navigator.clipboard.writeText(resetPasswordDialog.password);
-                  toast.success('Password copied to clipboard');
-                }
-              }}
-            >
-              Copy Password
-            </Button>
-            <Button
-              variant="outline"
               onClick={() =>
-                setResetPasswordDialog({ open: false, userId: null, password: null })
+                setResetPasswordDialog({ open: false, userId: null, userEmail: null })
               }
             >
               Close

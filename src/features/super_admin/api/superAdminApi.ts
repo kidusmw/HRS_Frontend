@@ -101,7 +101,7 @@ export const deactivateUser = async (id: number): Promise<{ data: UserListItem }
 
 export const resetUserPassword = async (
   id: number
-): Promise<{ message: string; password: string }> => {
+): Promise<{ message: string }> => {
   const response = await api.post(`${BASE_URL}/users/${id}/reset-password`);
   return response.data;
 };
