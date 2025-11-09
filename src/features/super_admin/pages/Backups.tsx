@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   flexRender,
   getCoreRowModel,
@@ -35,43 +35,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import type { BackupItem } from '@/types/admin';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  getBackups,
+  runFullBackup,
+  runHotelBackup,
+  downloadBackup,
+  getHotels,
+} from '../api/superAdminApi';
 
-// Mock data
-const mockBackups: BackupItem[] = [
-  {
-    id: 1,
-    type: 'full',
-    status: 'success',
-    sizeBytes: 52428800,
-    path: '/backups/full_20240101_120000.zip',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
-  },
-  {
-    id: 2,
-    type: 'hotel',
-    hotelId: 1,
-    hotelName: 'Grand Hotel',
-    status: 'success',
-    sizeBytes: 10485760,
-    path: '/backups/hotel_1_20240101_110000.json',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-  },
-  {
-    id: 3,
-    type: 'full',
-    status: 'failed',
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-  },
-];
-
-const mockHotels = [
-  { id: 1, name: 'Grand Hotel' },
-  { id: 2, name: 'Plaza Hotel' },
-  { id: 3, name: 'Ocean View Hotel' },
-];
 
 function formatFileSize(bytes: number | null | undefined): string {
   if (!bytes) return '—';
@@ -94,7 +70,9 @@ function getStatusBadgeVariant(status: BackupItem['status']) {
   }
 }
 
-const columns: ColumnDef<BackupItem>[] = [
+const createColumns = (
+  handleDownload: (backup: BackupItem) => void
+): ColumnDef<BackupItem>[] => [
   {
     accessorKey: 'createdAt',
     header: 'Timestamp',
@@ -156,7 +134,7 @@ const columns: ColumnDef<BackupItem>[] = [
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => console.log('Download', backup.path)}
+            onClick={() => handleDownload(backup)}
           >
             <Download className="h-4 w-4" />
           </Button>
@@ -174,9 +152,65 @@ export function Backups() {
   const [selectedHotelId, setSelectedHotelId] = useState<string>('');
   const [isFullBackupDialogOpen, setIsFullBackupDialogOpen] = useState(false);
   const [isHotelBackupDialogOpen, setIsHotelBackupDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRunningBackup, setIsRunningBackup] = useState(false);
+  const [backups, setBackups] = useState<BackupItem[]>([]);
+  const [hotels, setHotels] = useState<{ id: number; name: string }[]>([]);
+
+  // Fetch backups and hotels
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const [backupsResponse, hotelsResponse] = await Promise.all([
+          getBackups({ perPage: 50 }),
+          getHotels({ perPage: 100 }),
+        ]);
+        setBackups(backupsResponse.data);
+        setHotels(
+          hotelsResponse.data.map((h) => ({ id: h.id, name: h.name }))
+        );
+      } catch (error) {
+        console.error('Failed to load backups:', error);
+        toast.error('Failed to load backups');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  const data = useMemo(() => backups, [backups]);
+
+  const handleDownload = useCallback(async (backup: BackupItem) => {
+    if (!backup.path || backup.status !== 'success') {
+      toast.error('Backup file not available');
+      return;
+    }
+
+    try {
+      const blob = await downloadBackup(backup.id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = backup.path.split('/').pop() || `backup-${backup.id}.${backup.type === 'full' ? 'zip' : 'json'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success('Backup downloaded successfully');
+    } catch (error: any) {
+      console.error('Download failed:', error);
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to download backup';
+      toast.error(errorMessage);
+    }
+  }, []);
+
+  const columns = useMemo(() => createColumns(handleDownload), [handleDownload]);
 
   const table = useReactTable({
-    data: mockBackups,
+    data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -187,31 +221,55 @@ export function Backups() {
     },
   });
 
+  const refreshBackups = async () => {
+    try {
+      const response = await getBackups({ perPage: 50 });
+      setBackups(response.data);
+    } catch (error) {
+      console.error('Failed to refresh backups:', error);
+    }
+  };
+
   const handleFullBackup = async () => {
     try {
-      // TODO: Replace with actual API call
-      console.log('Starting full backup...');
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      setIsRunningBackup(true);
+      await runFullBackup();
+      toast.success('Full backup started successfully');
       setIsFullBackupDialogOpen(false);
-      // Show success notification
-    } catch (error) {
+      // Refresh backups list after a short delay to allow backup to process
+      setTimeout(() => {
+        refreshBackups();
+      }, 2000);
+    } catch (error: any) {
       console.error('Backup failed:', error);
-      // Show error notification
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to start backup';
+      toast.error(errorMessage);
+    } finally {
+      setIsRunningBackup(false);
     }
   };
 
   const handleHotelBackup = async () => {
     if (!selectedHotelId) return;
     try {
-      // TODO: Replace with actual API call
-      console.log('Starting hotel backup for:', selectedHotelId);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      setIsRunningBackup(true);
+      const hotelId = parseInt(selectedHotelId);
+      await runHotelBackup(hotelId);
+      toast.success('Hotel backup started successfully');
       setIsHotelBackupDialogOpen(false);
       setSelectedHotelId('');
-      // Show success notification
-    } catch (error) {
+      // Refresh backups list after a short delay
+      setTimeout(() => {
+        refreshBackups();
+      }, 2000);
+    } catch (error: any) {
       console.error('Backup failed:', error);
-      // Show error notification
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to start backup';
+      toast.error(errorMessage);
+    } finally {
+      setIsRunningBackup(false);
     }
   };
 
@@ -264,7 +322,9 @@ export function Backups() {
                   >
                     Cancel
                   </Button>
-                  <Button onClick={handleFullBackup}>Start Backup</Button>
+                  <Button onClick={handleFullBackup} disabled={isRunningBackup}>
+                    {isRunningBackup ? 'Starting...' : 'Start Backup'}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -287,7 +347,7 @@ export function Backups() {
                 <SelectValue placeholder="Select a hotel" />
               </SelectTrigger>
               <SelectContent>
-                {mockHotels.map((hotel) => (
+                {hotels.map((hotel) => (
                   <SelectItem key={hotel.id} value={hotel.id.toString()}>
                     {hotel.name}
                   </SelectItem>
@@ -306,7 +366,7 @@ export function Backups() {
                   <DialogTitle>Confirm Hotel Backup</DialogTitle>
                   <DialogDescription>
                     This will create a JSON export for{' '}
-                    {mockHotels.find((h) => h.id.toString() === selectedHotelId)?.name || 'the selected hotel'}.
+                    {hotels.find((h) => h.id.toString() === selectedHotelId)?.name || 'the selected hotel'}.
                     The export includes hotel data, rooms, staff, and reservations.
                   </DialogDescription>
                 </DialogHeader>
@@ -322,8 +382,8 @@ export function Backups() {
                   >
                     Cancel
                   </Button>
-                  <Button onClick={handleHotelBackup} disabled={!selectedHotelId}>
-                    Start Backup
+                  <Button onClick={handleHotelBackup} disabled={!selectedHotelId || isRunningBackup}>
+                    {isRunningBackup ? 'Starting...' : 'Start Backup'}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -339,8 +399,14 @@ export function Backups() {
           <CardDescription>View past backup operations and download files</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-64 w-full" />
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
@@ -384,6 +450,7 @@ export function Backups() {
               </TableBody>
             </Table>
           </div>
+          )}
 
           {/* Pagination */}
           <div className="flex items-center justify-end space-x-2 mt-4">
