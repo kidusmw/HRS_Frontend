@@ -220,7 +220,18 @@ export const getLogs = async (params?: {
   links: unknown;
   meta: unknown;
 }> => {
-  const response = await api.get(`${BASE_URL}/logs`, { params });
+  // Convert perPage to per_page for backend (other params stay as camelCase)
+  const backendParams: Record<string, unknown> = {};
+  if (params) {
+    Object.keys(params).forEach((key) => {
+      if (key === 'perPage') {
+        backendParams['per_page'] = params.perPage;
+      } else {
+        backendParams[key] = params[key as keyof typeof params];
+      }
+    });
+  }
+  const response = await api.get(`${BASE_URL}/logs`, { params: backendParams });
   return response.data;
 };
 
