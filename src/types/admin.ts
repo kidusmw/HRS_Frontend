@@ -24,7 +24,8 @@ export interface UserListItem {
 export interface HotelListItem {
   id: number;
   name: string;
-  address: string;
+  city: string;
+  country: string;
   timezone: string;
   adminName?: string | null;
   adminId?: number | null;
@@ -91,22 +92,22 @@ export interface UpdateUserDto {
 
 export interface CreateHotelDto {
   name: string;
-  address: string;
+  city: string;
+  country: string;
   phoneNumber: string;
   email: string;
   description?: string | null;
-  timezone: string;
   logo?: File | null;
   adminId?: number | null;
 }
 
 export interface UpdateHotelDto {
   name?: string;
-  address?: string;
+  city?: string;
+  country?: string;
   phoneNumber?: string;
   email?: string;
   description?: string | null;
-  timezone?: string;
   logo?: File | null;
   adminId?: number | null;
 }
