@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 const userFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
-  role: z.enum(['client', 'receptionist', 'manager', 'admin', 'super_admin']),
+  role: z.enum(['receptionist', 'manager', 'admin', 'super_admin']),
   hotelId: z.number().nullable().optional(),
   phoneNumber: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
@@ -44,7 +44,7 @@ interface UserFormProps {
   onCancel: () => void;
 }
 
-const roles: Role[] = ['client', 'receptionist', 'manager', 'admin', 'super_admin'];
+const roles: Role[] = ['receptionist', 'manager', 'admin', 'super_admin'];
 
 export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const isEditing = !!user;
@@ -68,7 +68,12 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
     defaultValues: {
       name: user?.name || '',
       email: user?.email || '',
-      role: user?.role || 'client',
+      // If editing a client, keep their role, otherwise default to receptionist
+      // Note: client role is not in the schema, but we handle it in defaultValues
+      // The backend will prevent changing TO client or creating clients
+      role: (user?.role && user.role !== 'client' && roles.includes(user.role as Role))
+        ? user.role
+        : 'receptionist',
       hotelId: user?.hotelId || null,
       phoneNumber: user?.phoneNumber || '',
       password: '',
@@ -90,10 +95,12 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
     try {
       if (isEditing && user) {
         // Update user - don't send password if not provided
+        // If user is a client, don't allow changing their role (clients must self-register)
         const updateData: any = {
           name: values.name,
           email: values.email,
-          role: values.role,
+          // Only update role if user is not a client (clients can't have their role changed)
+          ...(user.role !== 'client' && { role: values.role }),
           hotelId: values.hotelId || null,
           phoneNumber: values.phoneNumber || undefined,
           active: values.isActive,
@@ -186,6 +193,7 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
+                  {/* Only show non-client roles - clients must self-register */}
                   {roles.map((role) => (
                     <SelectItem key={role} value={role}>
                       {role.replace('_', ' ').toUpperCase()}
