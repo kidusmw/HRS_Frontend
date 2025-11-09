@@ -114,9 +114,19 @@ const createColumns = (
   {
     id: 'hotelId',
     accessorKey: 'hotelId',
+    header: 'Hotel ID',
+    enableColumnFilter: false,
     filterFn: (row, _id, value) => {
       const hotelId = row.original.hotelId?.toString();
       return hotelId === value;
+    },
+    cell: ({ row }) => {
+      const hotelId = row.getValue('hotelId') as number | null | undefined;
+      return hotelId ? (
+        <span className="text-muted-foreground">{hotelId}</span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      );
     },
   },
   {

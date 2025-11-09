@@ -46,15 +46,46 @@ export const getUser = async (id: number): Promise<{ data: UserListItem }> => {
 export const createUser = async (
   data: CreateUserDto & { generatePassword?: boolean; active?: boolean }
 ): Promise<{ data: UserListItem }> => {
-  const response = await api.post(`${BASE_URL}/users`, data);
+  // Convert camelCase to snake_case for backend
+  const payload: any = {
+    name: data.name,
+    email: data.email,
+    role: data.role,
+    password: data.password,
+    generatePassword: data.generatePassword,
+    phone_number: data.phoneNumber,
+    active: data.active,
+  };
+  
+  // Convert hotelId to hotel_id
+  if (data.hotelId !== undefined && data.hotelId !== null) {
+    payload.hotel_id = data.hotelId;
+  }
+  
+  const response = await api.post(`${BASE_URL}/users`, payload);
   return response.data;
 };
 
 export const updateUser = async (
   id: number,
-  data: UpdateUserDto & { active?: boolean }
+  data: UpdateUserDto & { active?: boolean; password?: string }
 ): Promise<{ data: UserListItem }> => {
-  const response = await api.put(`${BASE_URL}/users/${id}`, data);
+  // Convert camelCase to snake_case for backend
+  const payload: any = {};
+  
+  if (data.name !== undefined) payload.name = data.name;
+  if (data.email !== undefined) payload.email = data.email;
+  if (data.role !== undefined) payload.role = data.role;
+  if (data.password !== undefined && data.password !== '') payload.password = data.password;
+  if (data.phoneNumber !== undefined) payload.phone_number = data.phoneNumber;
+  if (data.active !== undefined) payload.active = data.active;
+  
+  // Convert hotelId to hotel_id
+  if (data.hotelId !== undefined) {
+    payload.hotel_id = data.hotelId ?? null;
+  }
+  
+  const response = await api.put(`${BASE_URL}/users/${id}`, payload);
   return response.data;
 };
 
