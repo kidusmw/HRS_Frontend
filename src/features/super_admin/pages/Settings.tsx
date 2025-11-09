@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -21,12 +21,28 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Upload, X } from 'lucide-react';
+import { toast } from 'sonner';
 import type { SystemSettingsDto } from '@/types/admin';
+import { getSystemSettings, updateSystemSettings } from '../api/superAdminApi';
 
 const settingsFormSchema = z.object({
   systemName: z.string().min(1, 'System name is required'),
-  systemLogoUrl: z.string().url().optional().or(z.literal('')),
+  systemLogoUrl: z
+    .string()
+    .refine(
+      (val) =>
+        !val ||
+        val.startsWith('http://') ||
+        val.startsWith('https://') ||
+        val.startsWith('data:image/'),
+      {
+        message: 'Must be a valid URL or data URL',
+      }
+    )
+    .optional()
+    .or(z.literal('')),
   defaultCurrency: z.string().min(1, 'Default currency is required'),
   defaultTimezone: z.string().min(1, 'Default timezone is required'),
 });
@@ -42,6 +58,8 @@ const currencies = [
 ];
 
 const timezones = [
+  'UTC',
+  'Africa/Addis_Ababa',
   'America/New_York',
   'America/Chicago',
   'America/Denver',
@@ -51,33 +69,64 @@ const timezones = [
   'Asia/Tokyo',
 ];
 
-// Mock current settings
-const mockCurrentSettings: SystemSettingsDto = {
-  systemName: 'Hotel Reservation System',
-  systemLogoUrl: null,
-  defaultCurrency: 'USD',
-  defaultTimezone: 'America/New_York',
-};
-
 export function Settings() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentSettings, setCurrentSettings] = useState<SystemSettingsDto | null>(null);
+
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
     defaultValues: {
-      systemName: mockCurrentSettings.systemName,
-      systemLogoUrl: mockCurrentSettings.systemLogoUrl || '',
-      defaultCurrency: mockCurrentSettings.defaultCurrency,
-      defaultTimezone: mockCurrentSettings.defaultTimezone,
+      systemName: '',
+      systemLogoUrl: '',
+      defaultCurrency: 'USD',
+      defaultTimezone: 'UTC',
     },
   });
 
-  const [logoPreview, setLogoPreview] = useState<string | null>(
-    mockCurrentSettings.systemLogoUrl || null
-  );
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+
+  // Fetch current settings
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        setIsLoading(true);
+        const response = await getSystemSettings();
+        const settings = response.data;
+        setCurrentSettings(settings);
+        
+        // Reset form with fetched settings
+        // Ensure UTC is default if no timezone is set
+        const timezone = settings.defaultTimezone && settings.defaultTimezone.trim() !== '' 
+          ? settings.defaultTimezone 
+          : 'UTC';
+        
+        form.reset({
+          systemName: settings.systemName || '',
+          systemLogoUrl: settings.systemLogoUrl || '',
+          defaultCurrency: settings.defaultCurrency || 'USD',
+          defaultTimezone: timezone,
+        });
+        
+        // Set logo preview if URL exists
+        if (settings.systemLogoUrl) {
+          setLogoPreview(settings.systemLogoUrl);
+        }
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+        toast.error('Failed to load settings');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, [form]);
 
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // In real implementation, upload to server and get URL
+      // For MVP: Create a data URL for preview and storage
+      // In production, upload to server and get URL
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
@@ -95,25 +144,67 @@ export function Settings() {
 
   const onSubmit = async (values: SettingsFormValues) => {
     try {
-      // TODO: Replace with actual API call
-      console.log('Saving settings:', values);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // Show success toast
-    } catch (error) {
+      const response = await updateSystemSettings({
+        systemName: values.systemName,
+        systemLogoUrl: values.systemLogoUrl || null,
+        defaultCurrency: values.defaultCurrency,
+        defaultTimezone: values.defaultTimezone,
+      });
+      
+      const updatedSettings = response.data;
+      setCurrentSettings(updatedSettings);
+      
+      // Update logo preview if URL exists
+      if (updatedSettings.systemLogoUrl) {
+        setLogoPreview(updatedSettings.systemLogoUrl);
+      } else {
+        setLogoPreview(null);
+      }
+      
+      toast.success('Settings saved successfully');
+    } catch (error: any) {
       console.error('Error saving settings:', error);
-      // Show error toast
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to save settings';
+      toast.error(errorMessage);
     }
   };
 
   const handleReset = () => {
-    form.reset({
-      systemName: mockCurrentSettings.systemName,
-      systemLogoUrl: mockCurrentSettings.systemLogoUrl || '',
-      defaultCurrency: mockCurrentSettings.defaultCurrency,
-      defaultTimezone: mockCurrentSettings.defaultTimezone,
-    });
-    setLogoPreview(mockCurrentSettings.systemLogoUrl || null);
+    if (currentSettings) {
+      form.reset({
+        systemName: currentSettings.systemName || '',
+        systemLogoUrl: currentSettings.systemLogoUrl || '',
+        defaultCurrency: currentSettings.defaultCurrency || 'USD',
+        defaultTimezone: currentSettings.defaultTimezone || 'UTC',
+      });
+      setLogoPreview(currentSettings.systemLogoUrl || null);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-9 w-48" />
+          <Skeleton className="h-5 w-64 mt-2" />
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-64 mt-2" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -257,8 +348,7 @@ export function Settings() {
                       <FormLabel>Default Timezone</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        value={field.value}
+                        value={field.value || 'UTC'}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -316,7 +406,7 @@ export function Settings() {
               </h3>
               <p className="text-sm text-muted-foreground">
                 Default Currency: {form.watch('defaultCurrency') || 'USD'} | Default
-                Timezone: {form.watch('defaultTimezone') || 'America/New_York'}
+                Timezone: {form.watch('defaultTimezone') || 'UTC'}
               </p>
             </div>
           </div>
