@@ -30,7 +30,7 @@ const userFormSchema = z.object({
   email: z.string().email('Invalid email address'),
   role: z.enum(['receptionist', 'manager', 'admin', 'super_admin']),
   hotelId: z.number().nullable().optional(),
-  phoneNumber: z.string().optional(),
+  phoneNumber: z.string().min(1, 'Phone number is required'),
   password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
   generatePassword: z.boolean(),
   isActive: z.boolean(),
@@ -102,7 +102,8 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
           // Only update role if user is not a client (clients can't have their role changed)
           ...(user.role !== 'client' && { role: values.role }),
           hotelId: values.hotelId || null,
-          phoneNumber: values.phoneNumber || undefined,
+          // Phone number is required for creation, but can be empty for updates (will be sent as empty string, backend handles it)
+          phoneNumber: values.phoneNumber || '',
           active: values.isActive,
         };
         if (values.password && values.password.length >= 8) {
@@ -247,13 +248,17 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
           name="phoneNumber"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Phone Number</FormLabel>
+              <FormLabel>
+                Phone Number
+                <span className="text-destructive ml-1">*</span>
+              </FormLabel>
               <FormControl>
                 <Input
                   type="tel"
                   placeholder="+1234567890"
                   {...field}
                   value={field.value || ''}
+                  required
                 />
               </FormControl>
               <FormMessage />
