@@ -1,5 +1,5 @@
 // Mock data helpers for Admin Dashboard (hotel-scoped)
-import type { AuditLogItem, BackupItem } from '@/types/admin';
+import type { AuditLogItem, BackupItem, PaymentListItem } from '@/types/admin';
 
 interface KpiData {
   occupancyPct: number;
@@ -1132,6 +1132,173 @@ export function downloadHotelBackup(id: number): Promise<Blob> {
       const blob = new Blob([jsonString], { type: 'application/json' });
       resolve(blob);
     }, 500);
+  });
+}
+
+// Hotel Payments Mock Data
+const mockHotelPayments: PaymentListItem[] = [
+  {
+    id: 1,
+    reservationId: 1,
+    reservationNumber: 'RES-2025-001',
+    guestName: 'John Doe',
+    guestEmail: 'john.doe@example.com',
+    amount: 450.00,
+    currency: 'USD',
+    paymentMethod: 'credit_card',
+    status: 'completed',
+    transactionId: 'TXN-20251109-001',
+    paidAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 2,
+    reservationId: 2,
+    reservationNumber: 'RES-2025-002',
+    guestName: 'Jane Smith',
+    guestEmail: 'jane.smith@example.com',
+    amount: 320.00,
+    currency: 'USD',
+    paymentMethod: 'debit_card',
+    status: 'completed',
+    transactionId: 'TXN-20251109-002',
+    paidAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 3,
+    reservationId: 3,
+    reservationNumber: 'RES-2025-003',
+    guestName: 'Bob Johnson',
+    guestEmail: 'bob.johnson@example.com',
+    amount: 280.00,
+    currency: 'USD',
+    paymentMethod: 'online',
+    status: 'pending',
+    transactionId: 'TXN-20251109-003',
+    paidAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 4,
+    reservationId: 4,
+    reservationNumber: 'RES-2025-004',
+    guestName: 'Alice Williams',
+    guestEmail: 'alice.williams@example.com',
+    amount: 550.00,
+    currency: 'USD',
+    paymentMethod: 'credit_card',
+    status: 'completed',
+    transactionId: 'TXN-20251109-004',
+    paidAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 5,
+    reservationId: 5,
+    reservationNumber: 'RES-2025-005',
+    guestName: 'Charlie Brown',
+    guestEmail: 'charlie.brown@example.com',
+    amount: 380.00,
+    currency: 'USD',
+    paymentMethod: 'bank_transfer',
+    status: 'failed',
+    transactionId: 'TXN-20251109-005',
+    paidAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 6,
+    reservationId: 6,
+    reservationNumber: 'RES-2025-006',
+    guestName: 'Diana Prince',
+    guestEmail: 'diana.prince@example.com',
+    amount: 420.00,
+    currency: 'USD',
+    paymentMethod: 'credit_card',
+    status: 'completed',
+    transactionId: 'TXN-20251109-006',
+    paidAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 7,
+    reservationId: 7,
+    reservationNumber: 'RES-2025-007',
+    guestName: 'Edward Norton',
+    guestEmail: 'edward.norton@example.com',
+    amount: 290.00,
+    currency: 'USD',
+    paymentMethod: 'cash',
+    status: 'completed',
+    transactionId: null,
+    paidAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 8,
+    reservationId: 8,
+    reservationNumber: 'RES-2025-008',
+    guestName: 'Fiona Apple',
+    guestEmail: 'fiona.apple@example.com',
+    amount: 360.00,
+    currency: 'USD',
+    paymentMethod: 'credit_card',
+    status: 'refunded',
+    transactionId: 'TXN-20251109-008',
+    paidAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 9,
+    reservationId: 9,
+    reservationNumber: 'RES-2025-009',
+    guestName: 'George Clooney',
+    guestEmail: 'george.clooney@example.com',
+    amount: 480.00,
+    currency: 'USD',
+    paymentMethod: 'debit_card',
+    status: 'completed',
+    transactionId: 'TXN-20251109-009',
+    paidAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 10,
+    reservationId: 10,
+    reservationNumber: 'RES-2025-010',
+    guestName: 'Helen Mirren',
+    guestEmail: 'helen.mirren@example.com',
+    amount: 340.00,
+    currency: 'USD',
+    paymentMethod: 'online',
+    status: 'completed',
+    transactionId: 'TXN-20251109-010',
+    paidAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+export function getHotelPayments(
+  hotelId: number = MOCK_HOTEL_ID
+): Promise<{ data: PaymentListItem[] }> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // Filter payments by hotel (through reservations)
+      // In real app, payments would be linked to reservations which are linked to hotels
+      // For mock, we'll filter by hotelId if it exists in the payment data
+      // Since we don't have hotelId in payment, we'll return all payments for now
+      // In real implementation, this would join with reservations table
+      const filtered = mockHotelPayments; // All payments are for the hotel
+      
+      // Sort by paidAt descending
+      filtered.sort(
+        (a, b) =>
+          new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime()
+      );
+
+      resolve({ data: filtered });
+    }, 300);
   });
 }
 
