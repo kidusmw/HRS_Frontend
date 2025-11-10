@@ -579,3 +579,79 @@ export function updateHotelReservationStatus(
   });
 }
 
+// Hotel Settings Mock Data
+interface HotelSettings {
+  logoUrl: string | null;
+  checkInTime: string;
+  checkOutTime: string;
+  cancellationHours: number;
+  allowOnlineBooking: boolean;
+  requireDeposit: boolean;
+  depositPercentage: number;
+  emailNotifications: boolean;
+  smsNotifications: boolean;
+}
+
+// Mock hotel settings storage (in real app, this comes from backend)
+const mockHotelSettings: Record<number, HotelSettings> = {
+  1: {
+    logoUrl: null,
+    checkInTime: '15:00',
+    checkOutTime: '11:00',
+    cancellationHours: 24,
+    allowOnlineBooking: true,
+    requireDeposit: false,
+    depositPercentage: 0,
+    emailNotifications: true,
+    smsNotifications: false,
+  },
+};
+
+export function getHotelSettings(hotelId: number = MOCK_HOTEL_ID): Promise<{ data: HotelSettings }> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const settings = mockHotelSettings[hotelId] || {
+        logoUrl: null,
+        checkInTime: '15:00',
+        checkOutTime: '11:00',
+        cancellationHours: 24,
+        allowOnlineBooking: true,
+        requireDeposit: false,
+        depositPercentage: 0,
+        emailNotifications: true,
+        smsNotifications: false,
+      };
+      resolve({ data: settings });
+    }, 300);
+  });
+}
+
+export function updateHotelSettings(
+  hotelId: number,
+  settings: Partial<HotelSettings>
+): Promise<{ data: HotelSettings }> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const currentSettings = mockHotelSettings[hotelId] || {
+        logoUrl: null,
+        checkInTime: '15:00',
+        checkOutTime: '11:00',
+        cancellationHours: 24,
+        allowOnlineBooking: true,
+        requireDeposit: false,
+        depositPercentage: 0,
+        emailNotifications: true,
+        smsNotifications: false,
+      };
+
+      const updatedSettings: HotelSettings = {
+        ...currentSettings,
+        ...settings,
+      };
+
+      mockHotelSettings[hotelId] = updatedSettings;
+      resolve({ data: updatedSettings });
+    }, 500);
+  });
+}
+
