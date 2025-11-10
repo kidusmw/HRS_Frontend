@@ -44,11 +44,6 @@ const navItems = [
     icon: FileText,
   },
   {
-    title: 'Profile',
-    href: '/admin/profile',
-    icon: User,
-  },
-  {
     title: 'Backup',
     href: '/admin/backups',
     icon: Database,
