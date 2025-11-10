@@ -1,5 +1,5 @@
 // Mock data helpers for Admin Dashboard (hotel-scoped)
-import type { AuditLogItem } from '@/types/admin';
+import type { AuditLogItem, BackupItem } from '@/types/admin';
 
 interface KpiData {
   occupancyPct: number;
@@ -955,6 +955,183 @@ export function getHotelLogs(
         },
       });
     }, 300);
+  });
+}
+
+// Hotel Backups Mock Data
+const mockHotelBackups: BackupItem[] = [
+  {
+    id: 1,
+    type: 'hotel',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    status: 'success',
+    sizeBytes: 2457600, // ~2.4 MB
+    path: '/backups/hotel-2-2025-11-09.json',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 2,
+    type: 'hotel',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    status: 'success',
+    sizeBytes: 2380800, // ~2.3 MB
+    path: '/backups/hotel-2-2025-11-08.json',
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 3,
+    type: 'hotel',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    status: 'success',
+    sizeBytes: 2519040, // ~2.5 MB
+    path: '/backups/hotel-2-2025-11-07.json',
+    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 4,
+    type: 'hotel',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    status: 'failed',
+    sizeBytes: null,
+    path: null,
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 5,
+    type: 'hotel',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    status: 'success',
+    sizeBytes: 2293760, // ~2.2 MB
+    path: '/backups/hotel-2-2025-11-06.json',
+    createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 6,
+    type: 'hotel',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    status: 'success',
+    sizeBytes: 2621440, // ~2.6 MB
+    path: '/backups/hotel-2-2025-11-05.json',
+    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    id: 7,
+    type: 'hotel',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    status: 'success',
+    sizeBytes: 2162688, // ~2.1 MB
+    path: '/backups/hotel-2-2025-11-04.json',
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
+interface GetHotelBackupsParams {
+  page?: number;
+  perPage?: number;
+}
+
+export function getHotelBackups(
+  hotelId: number = MOCK_HOTEL_ID,
+  params: GetHotelBackupsParams = {}
+): Promise<{
+  data: BackupItem[];
+  meta?: {
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+  };
+}> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // Filter backups by hotel
+      let filtered = mockHotelBackups.filter((backup) => backup.hotelId === hotelId);
+
+      // Sort by createdAt descending
+      filtered.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      // Pagination
+      const page = params.page || 1;
+      const perPage = params.perPage || 5;
+      const total = filtered.length;
+      const lastPage = Math.ceil(total / perPage);
+      const startIndex = (page - 1) * perPage;
+      const endIndex = startIndex + perPage;
+      const paginatedData = filtered.slice(startIndex, endIndex);
+
+      resolve({
+        data: paginatedData,
+        meta: {
+          current_page: page,
+          per_page: perPage,
+          total,
+          last_page: lastPage,
+        },
+      });
+    }, 300);
+  });
+}
+
+export function runHotelBackup(
+  hotelId: number = MOCK_HOTEL_ID
+): Promise<{ data: BackupItem }> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const newBackup: BackupItem = {
+        id: Date.now(), // Use timestamp as ID for new backups
+        type: 'hotel',
+        hotelId,
+        hotelName: 'Test Hotel', // In real app, fetch from hotel data
+        status: 'queued',
+        sizeBytes: null,
+        path: null,
+        createdAt: new Date().toISOString(),
+      };
+      
+      // Add to mock data
+      mockHotelBackups.unshift(newBackup);
+      
+      resolve({ data: newBackup });
+    }, 500);
+  });
+}
+
+export function downloadHotelBackup(id: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const backup = mockHotelBackups.find((b) => b.id === id);
+      if (!backup || backup.status !== 'success' || !backup.path) {
+        reject(new Error('Backup not found or not available'));
+        return;
+      }
+
+      // Create a mock JSON blob
+      const mockData = {
+        hotel: {
+          id: backup.hotelId,
+          name: backup.hotelName,
+        },
+        rooms: [],
+        reservations: [],
+        users: [],
+        settings: {},
+        exportedAt: backup.createdAt,
+      };
+
+      const jsonString = JSON.stringify(mockData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      resolve(blob);
+    }, 500);
   });
 }
 
