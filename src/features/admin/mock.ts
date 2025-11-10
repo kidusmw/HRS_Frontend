@@ -258,3 +258,125 @@ export function deleteHotelUser(userId: number, hotelId: number): Promise<void> 
   });
 }
 
+// Mock room data for hotel-scoped room management
+import type { RoomListItem } from '@/types/admin';
+
+let mockRooms: RoomListItem[] = [
+  {
+    id: 1,
+    hotelId: MOCK_HOTEL_ID,
+    type: 'Standard',
+    price: 99.99,
+    isAvailable: true,
+    capacity: 2,
+    description: 'Comfortable standard room with basic amenities',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    hotelId: MOCK_HOTEL_ID,
+    type: 'Deluxe',
+    price: 149.99,
+    isAvailable: true,
+    capacity: 3,
+    description: 'Spacious deluxe room with premium amenities',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    hotelId: MOCK_HOTEL_ID,
+    type: 'Suite',
+    price: 249.99,
+    isAvailable: false,
+    capacity: 4,
+    description: 'Luxurious suite with separate living area',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 4,
+    hotelId: MOCK_HOTEL_ID,
+    type: 'Standard',
+    price: 89.99,
+    isAvailable: true,
+    capacity: 1,
+    description: 'Single occupancy standard room',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+export function getHotelRooms(hotelId: number = MOCK_HOTEL_ID): { data: RoomListItem[] } {
+  const filtered = mockRooms.filter((r) => r.hotelId === hotelId);
+  return { data: filtered };
+}
+
+export function createHotelRoom(
+  hotelId: number,
+  roomData: {
+    type: string;
+    price: number;
+    isAvailable: boolean;
+    capacity: number;
+    description?: string | null;
+  }
+): Promise<RoomListItem> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const newRoom: RoomListItem = {
+        id: mockRooms.length + 1,
+        hotelId,
+        ...roomData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      mockRooms.push(newRoom);
+      resolve(newRoom);
+    }, 500);
+  });
+}
+
+export function updateHotelRoom(
+  roomId: number,
+  hotelId: number,
+  roomData: {
+    type?: string;
+    price?: number;
+    isAvailable?: boolean;
+    capacity?: number;
+    description?: string | null;
+  }
+): Promise<RoomListItem> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const roomIndex = mockRooms.findIndex((r) => r.id === roomId && r.hotelId === hotelId);
+      if (roomIndex === -1) {
+        reject(new Error('Room not found'));
+        return;
+      }
+      mockRooms[roomIndex] = {
+        ...mockRooms[roomIndex],
+        ...roomData,
+        updatedAt: new Date().toISOString(),
+      };
+      resolve(mockRooms[roomIndex]);
+    }, 500);
+  });
+}
+
+export function deleteHotelRoom(roomId: number, hotelId: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const roomIndex = mockRooms.findIndex((r) => r.id === roomId && r.hotelId === hotelId);
+      if (roomIndex === -1) {
+        reject(new Error('Room not found'));
+        return;
+      }
+      mockRooms.splice(roomIndex, 1);
+      resolve();
+    }, 300);
+  });
+}
+

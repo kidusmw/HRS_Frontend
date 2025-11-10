@@ -114,3 +114,31 @@ export interface UpdateHotelDto {
   adminId?: number | null;
 }
 
+export interface RoomListItem {
+  id: number;
+  hotelId: number;
+  type: string;
+  price: number;
+  isAvailable: boolean;
+  capacity: number;
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateRoomDto {
+  type: string;
+  price: number;
+  isAvailable: boolean;
+  capacity: number;
+  description?: string | null;
+}
+
+export interface UpdateRoomDto {
+  type?: string;
+  price?: number;
+  isAvailable?: boolean;
+  capacity?: number;
+  description?: string | null;
+}
+
