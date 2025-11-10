@@ -1,4 +1,5 @@
 // Mock data helpers for Admin Dashboard (hotel-scoped)
+import type { AuditLogItem } from '@/types/admin';
 
 interface KpiData {
   occupancyPct: number;
@@ -153,12 +154,16 @@ let mockUsers: UserListItem[] = [
   },
 ];
 
-export function getHotelUsers(hotelId: number = MOCK_HOTEL_ID): { data: UserListItem[] } {
-  // Filter users by hotel and exclude admin/super_admin roles
-  const filtered = mockUsers.filter(
-    (u) => u.hotelId === hotelId && u.role !== 'admin' && u.role !== 'super_admin'
-  );
-  return { data: filtered };
+export function getHotelUsers(hotelId: number = MOCK_HOTEL_ID): Promise<{ data: UserListItem[] }> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // Filter users by hotel and exclude admin/super_admin roles
+      const filtered = mockUsers.filter(
+        (u) => u.hotelId === hotelId && u.role !== 'admin' && u.role !== 'super_admin'
+      );
+      resolve({ data: filtered });
+    }, 300);
+  });
 }
 
 export function createHotelUser(
@@ -308,9 +313,13 @@ let mockRooms: RoomListItem[] = [
   },
 ];
 
-export function getHotelRooms(hotelId: number = MOCK_HOTEL_ID): { data: RoomListItem[] } {
-  const filtered = mockRooms.filter((r) => r.hotelId === hotelId);
-  return { data: filtered };
+export function getHotelRooms(hotelId: number = MOCK_HOTEL_ID): Promise<{ data: RoomListItem[] }> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const filtered = mockRooms.filter((r) => r.hotelId === hotelId);
+      resolve({ data: filtered });
+    }, 300);
+  });
 }
 
 export function createHotelRoom(
@@ -450,9 +459,13 @@ let mockReservations: ReservationListItem[] = [
   },
 ];
 
-export function getHotelReservations(hotelId: number = MOCK_HOTEL_ID): { data: ReservationListItem[] } {
-  const filtered = mockReservations.filter((r) => r.hotelId === hotelId);
-  return { data: filtered };
+export function getHotelReservations(hotelId: number = MOCK_HOTEL_ID): Promise<{ data: ReservationListItem[] }> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const filtered = mockReservations.filter((r) => r.hotelId === hotelId);
+      resolve({ data: filtered });
+    }, 300);
+  });
 }
 
 export function createHotelReservation(
@@ -652,6 +665,296 @@ export function updateHotelSettings(
       mockHotelSettings[hotelId] = updatedSettings;
       resolve({ data: updatedSettings });
     }, 500);
+  });
+}
+
+// Hotel Audit Logs Mock Data
+const mockHotelLogs: AuditLogItem[] = [
+  // Hotel ID 1 logs
+  {
+    id: 1,
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    userName: 'John Doe',
+    userId: 1,
+    action: 'user.created',
+    hotelId: 1,
+    hotelName: 'Grand Hotel',
+    meta: { user_id: 5, user_name: 'Jane Smith', role: 'receptionist' },
+  },
+  {
+    id: 2,
+    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    userName: 'John Doe',
+    userId: 1,
+    action: 'room.updated',
+    hotelId: 1,
+    hotelName: 'Grand Hotel',
+    meta: { room_id: 1, changes: { price: { old: 100, new: 120 } } },
+  },
+  {
+    id: 3,
+    timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'Jane Manager',
+    userId: 2,
+    action: 'reservation.confirmed',
+    hotelId: 1,
+    hotelName: 'Grand Hotel',
+    meta: { reservation_id: 1, room_id: 1, user_id: 3 },
+  },
+  {
+    id: 4,
+    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'John Doe',
+    userId: 1,
+    action: 'user.updated',
+    hotelId: 1,
+    hotelName: 'Grand Hotel',
+    meta: { user_id: 2, changes: { role: { old: 'receptionist', new: 'manager' } } },
+  },
+  {
+    id: 5,
+    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'Jane Manager',
+    userId: 2,
+    action: 'room.created',
+    hotelId: 1,
+    hotelName: 'Grand Hotel',
+    meta: { room_id: 3, room_type: 'Deluxe', price: 150 },
+  },
+  {
+    id: 6,
+    timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'John Doe',
+    userId: 1,
+    action: 'reservation.cancelled',
+    hotelId: 1,
+    hotelName: 'Grand Hotel',
+    meta: { reservation_id: 2, reason: 'Guest request' },
+  },
+  {
+    id: 7,
+    timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'Jane Manager',
+    userId: 2,
+    action: 'user.deleted',
+    hotelId: 1,
+    hotelName: 'Grand Hotel',
+    meta: { user_id: 4, user_name: 'Old Staff' },
+  },
+  {
+    id: 8,
+    timestamp: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'John Doe',
+    userId: 1,
+    action: 'room.updated',
+    hotelId: 1,
+    hotelName: 'Grand Hotel',
+    meta: { room_id: 2, changes: { isAvailable: { old: true, new: false } } },
+  },
+  {
+    id: 9,
+    timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'Jane Manager',
+    userId: 2,
+    action: 'reservation.created',
+    hotelId: 1,
+    hotelName: 'Grand Hotel',
+    meta: { reservation_id: 3, room_id: 1, user_id: 5 },
+  },
+  {
+    id: 10,
+    timestamp: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'John Doe',
+    userId: 1,
+    action: 'user.activated',
+    hotelId: 1,
+    hotelName: 'Grand Hotel',
+    meta: { user_id: 3 },
+  },
+  // Hotel ID 2 logs
+  {
+    id: 11,
+    timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+    userName: 'test A',
+    userId: 6,
+    action: 'user.created',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    meta: { user_id: 7, user_name: 'New Staff', role: 'receptionist' },
+  },
+  {
+    id: 12,
+    timestamp: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+    userName: 'test A',
+    userId: 6,
+    action: 'room.updated',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    meta: { room_id: 1, changes: { price: { old: 80, new: 100 } } },
+  },
+  {
+    id: 13,
+    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    userName: 'test A',
+    userId: 6,
+    action: 'reservation.confirmed',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    meta: { reservation_id: 1, room_id: 1, user_id: 8 },
+  },
+  {
+    id: 14,
+    timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'test A',
+    userId: 6,
+    action: 'user.updated',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    meta: { user_id: 7, changes: { role: { old: 'receptionist', new: 'manager' } } },
+  },
+  {
+    id: 15,
+    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'test A',
+    userId: 6,
+    action: 'room.created',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    meta: { room_id: 2, room_type: 'Standard', price: 90 },
+  },
+  {
+    id: 16,
+    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'test A',
+    userId: 6,
+    action: 'reservation.cancelled',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    meta: { reservation_id: 2, reason: 'Guest cancellation' },
+  },
+  {
+    id: 17,
+    timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'test A',
+    userId: 6,
+    action: 'user.deleted',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    meta: { user_id: 9, user_name: 'Removed Staff' },
+  },
+  {
+    id: 18,
+    timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'test A',
+    userId: 6,
+    action: 'room.updated',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    meta: { room_id: 1, changes: { isAvailable: { old: false, new: true } } },
+  },
+  {
+    id: 19,
+    timestamp: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'test A',
+    userId: 6,
+    action: 'reservation.created',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    meta: { reservation_id: 3, room_id: 2, user_id: 8 },
+  },
+  {
+    id: 20,
+    timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    userName: 'test A',
+    userId: 6,
+    action: 'user.activated',
+    hotelId: 2,
+    hotelName: 'Test Hotel',
+    meta: { user_id: 7 },
+  },
+];
+
+interface GetHotelLogsParams {
+  userId?: number;
+  action?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export function getHotelLogs(
+  hotelId: number = MOCK_HOTEL_ID,
+  params: GetHotelLogsParams = {}
+): Promise<{
+  data: AuditLogItem[];
+  meta?: {
+    current_page: number;
+    per_page: number;
+    total: number;
+    last_page: number;
+  };
+}> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      console.log('getHotelLogs called with hotelId:', hotelId, 'type:', typeof hotelId);
+      console.log('mockHotelLogs count:', mockHotelLogs.length);
+      console.log('mockHotelLogs hotelIds:', mockHotelLogs.map(log => ({ id: log.id, hotelId: log.hotelId, hotelIdType: typeof log.hotelId })));
+      // Filter logs by hotel - ensure both are numbers for comparison
+      const hotelIdNum = Number(hotelId);
+      let filtered = mockHotelLogs.filter((log) => Number(log.hotelId) === hotelIdNum);
+      console.log('Filtered logs count:', filtered.length);
+      console.log('Filtered logs:', filtered);
+
+      // Apply filters
+      if (params.userId) {
+        filtered = filtered.filter((log) => log.userId === params.userId);
+      }
+
+      if (params.action) {
+        filtered = filtered.filter((log) =>
+          log.action.toLowerCase().includes(params.action!.toLowerCase())
+        );
+      }
+
+      if (params.from) {
+        const fromDate = new Date(params.from);
+        filtered = filtered.filter(
+          (log) => new Date(log.timestamp) >= fromDate
+        );
+      }
+
+      if (params.to) {
+        const toDate = new Date(params.to);
+        toDate.setHours(23, 59, 59, 999); // End of day
+        filtered = filtered.filter((log) => new Date(log.timestamp) <= toDate);
+      }
+
+      // Sort by timestamp descending
+      filtered.sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
+      // Pagination
+      const page = params.page || 1;
+      const perPage = params.perPage || 10;
+      const total = filtered.length;
+      const lastPage = Math.ceil(total / perPage);
+      const startIndex = (page - 1) * perPage;
+      const endIndex = startIndex + perPage;
+      const paginatedData = filtered.slice(startIndex, endIndex);
+
+      resolve({
+        data: paginatedData,
+        meta: {
+          current_page: page,
+          per_page: perPage,
+          total,
+          last_page: lastPage,
+        },
+      });
+    }, 300);
   });
 }
 
