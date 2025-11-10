@@ -318,7 +318,7 @@ export function Reservations() {
     setSelectedReservation(null);
     // Refresh reservations list
     try {
-      const response = getHotelReservations(hotelId);
+      const response = await getHotelReservations(hotelId);
       setReservations(response.data);
     } catch (error) {
       console.error('Failed to refresh reservations:', error);
@@ -330,7 +330,7 @@ export function Reservations() {
       await updateHotelReservationStatus(reservation.id, hotelId, 'confirmed');
       toast.success('Reservation confirmed successfully');
       // Refresh reservations list
-      const response = getHotelReservations(hotelId);
+      const response = await getHotelReservations(hotelId);
       setReservations(response.data);
     } catch (error: any) {
       console.error('Failed to confirm reservation:', error);
@@ -343,7 +343,7 @@ export function Reservations() {
       await updateHotelReservationStatus(reservation.id, hotelId, 'cancelled');
       toast.success('Reservation cancelled successfully');
       // Refresh reservations list
-      const response = getHotelReservations(hotelId);
+      const response = await getHotelReservations(hotelId);
       setReservations(response.data);
     } catch (error: any) {
       console.error('Failed to cancel reservation:', error);
@@ -367,7 +367,7 @@ export function Reservations() {
         prevReservations.filter((r) => r.id !== reservationToDelete.id)
       );
       // Fetch fresh data to ensure sync
-      const response = getHotelReservations(hotelId);
+      const response = await getHotelReservations(hotelId);
       setReservations(response.data);
     } catch (error: any) {
       console.error('Failed to delete reservation:', error);

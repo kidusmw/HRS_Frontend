@@ -200,7 +200,7 @@ export function Rooms() {
         setIsLoading(true);
         // Simulate API call delay
         await new Promise((resolve) => setTimeout(resolve, 300));
-        const response = getHotelRooms(hotelId);
+        const response = await getHotelRooms(hotelId);
         setRooms(response.data);
       } catch (error) {
         console.error('Failed to load rooms:', error);
@@ -222,7 +222,7 @@ export function Rooms() {
     setSelectedRoom(null);
     // Refresh rooms list
     try {
-      const response = getHotelRooms(hotelId);
+      const response = await getHotelRooms(hotelId);
       setRooms(response.data);
     } catch (error) {
       console.error('Failed to refresh rooms:', error);
@@ -243,7 +243,7 @@ export function Rooms() {
       // Refresh rooms list - remove from state immediately and then fetch fresh data
       setRooms((prevRooms) => prevRooms.filter((r) => r.id !== roomToDelete.id));
       // Fetch fresh data to ensure sync
-      const response = getHotelRooms(hotelId);
+      const response = await getHotelRooms(hotelId);
       setRooms(response.data);
     } catch (error: any) {
       console.error('Failed to delete room:', error);

@@ -204,7 +204,7 @@ export function Users() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const response = getHotelUsers(hotelId);
+        const response = await getHotelUsers(hotelId);
         setUsers(response.data);
       } catch (error) {
         console.error('Failed to load users:', error);
@@ -231,7 +231,7 @@ export function Users() {
         toast.success('User activated successfully');
       }
       // Refresh users list
-      const response = getHotelUsers(hotelId);
+      const response = await getHotelUsers(hotelId);
       setUsers(response.data);
     } catch (error) {
       console.error('Failed to toggle user status:', error);
@@ -260,7 +260,7 @@ export function Users() {
     setSelectedUser(null);
     // Refresh users list
     try {
-      const response = getHotelUsers(hotelId);
+      const response = await getHotelUsers(hotelId);
       setUsers(response.data);
     } catch (error) {
       console.error('Failed to refresh users:', error);
@@ -281,7 +281,7 @@ export function Users() {
       // Refresh users list - remove from state immediately and then fetch fresh data
       setUsers((prevUsers) => prevUsers.filter((u) => u.id !== userToDelete.id));
       // Fetch fresh data to ensure sync
-      const response = getHotelUsers(hotelId);
+      const response = await getHotelUsers(hotelId);
       setUsers(response.data);
     } catch (error: any) {
       console.error('Failed to delete user:', error);
