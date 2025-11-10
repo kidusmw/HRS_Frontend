@@ -181,3 +181,21 @@ export interface UpdateReservationDto {
   specialRequests?: string | null;
 }
 
+export type PaymentStatus = 'completed' | 'pending' | 'failed' | 'refunded';
+export type PaymentMethod = 'credit_card' | 'debit_card' | 'cash' | 'bank_transfer' | 'online';
+
+export interface PaymentListItem {
+  id: number;
+  reservationId: number;
+  reservationNumber?: string | null;
+  guestName: string;
+  guestEmail?: string | null;
+  amount: number;
+  currency: string;
+  paymentMethod: PaymentMethod;
+  status: PaymentStatus;
+  transactionId?: string | null;
+  paidAt: string;
+  createdAt: string;
+}
+
