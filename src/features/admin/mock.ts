@@ -380,3 +380,202 @@ export function deleteHotelRoom(roomId: number, hotelId: number): Promise<void> 
   });
 }
 
+// Mock reservation data for hotel-scoped reservation management
+import type { ReservationListItem, ReservationStatus } from '@/types/admin';
+
+let mockReservations: ReservationListItem[] = [
+  {
+    id: 1,
+    hotelId: MOCK_HOTEL_ID,
+    roomId: 1,
+    roomType: 'Standard',
+    userId: 1,
+    userName: 'John Doe',
+    userEmail: 'john.doe@example.com',
+    checkIn: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    checkOut: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'confirmed',
+    guests: 2,
+    specialRequests: 'Late check-in requested',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    hotelId: MOCK_HOTEL_ID,
+    roomId: 2,
+    roomType: 'Deluxe',
+    userId: 2,
+    userName: 'Jane Smith',
+    userEmail: 'jane.smith@example.com',
+    checkIn: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    checkOut: new Date(Date.now() + 17 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'pending',
+    guests: 3,
+    specialRequests: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 3,
+    hotelId: MOCK_HOTEL_ID,
+    roomId: 3,
+    roomType: 'Suite',
+    userId: null,
+    userName: 'Walk-in Guest',
+    userEmail: null,
+    checkIn: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    checkOut: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'confirmed',
+    guests: 4,
+    specialRequests: 'Extra towels needed',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: 4,
+    hotelId: MOCK_HOTEL_ID,
+    roomId: 1,
+    roomType: 'Standard',
+    userId: 1,
+    userName: 'John Doe',
+    userEmail: 'john.doe@example.com',
+    checkIn: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    checkOut: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'pending',
+    guests: 2,
+    specialRequests: 'Early check-in preferred',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
+export function getHotelReservations(hotelId: number = MOCK_HOTEL_ID): { data: ReservationListItem[] } {
+  const filtered = mockReservations.filter((r) => r.hotelId === hotelId);
+  return { data: filtered };
+}
+
+export function createHotelReservation(
+  hotelId: number,
+  reservationData: {
+    roomId: number;
+    userId?: number | null;
+    checkIn: string;
+    checkOut: string;
+    status: ReservationStatus;
+    guests: number;
+    specialRequests?: string | null;
+  }
+): Promise<ReservationListItem> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const room = mockRooms.find((r) => r.id === reservationData.roomId && r.hotelId === hotelId);
+      const user = reservationData.userId
+        ? mockUsers.find((u) => u.id === reservationData.userId && u.hotelId === hotelId)
+        : null;
+      
+      const newReservation: ReservationListItem = {
+        id: mockReservations.length + 1,
+        hotelId,
+        roomId: reservationData.roomId,
+        roomType: room?.type || null,
+        userId: reservationData.userId || null,
+        userName: user?.name || 'Walk-in Guest',
+        userEmail: user?.email || null,
+        checkIn: reservationData.checkIn,
+        checkOut: reservationData.checkOut,
+        status: reservationData.status,
+        guests: reservationData.guests,
+        specialRequests: reservationData.specialRequests || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      mockReservations.push(newReservation);
+      resolve(newReservation);
+    }, 500);
+  });
+}
+
+export function updateHotelReservation(
+  reservationId: number,
+  hotelId: number,
+  reservationData: {
+    roomId?: number;
+    userId?: number | null;
+    checkIn?: string;
+    checkOut?: string;
+    status?: ReservationStatus;
+    guests?: number;
+    specialRequests?: string | null;
+  }
+): Promise<ReservationListItem> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const reservationIndex = mockReservations.findIndex(
+        (r) => r.id === reservationId && r.hotelId === hotelId
+      );
+      if (reservationIndex === -1) {
+        reject(new Error('Reservation not found'));
+        return;
+      }
+      
+      const room = reservationData.roomId
+        ? mockRooms.find((r) => r.id === reservationData.roomId && r.hotelId === hotelId)
+        : null;
+      const user = reservationData.userId
+        ? mockUsers.find((u) => u.id === reservationData.userId && u.hotelId === hotelId)
+        : null;
+      
+      mockReservations[reservationIndex] = {
+        ...mockReservations[reservationIndex],
+        ...reservationData,
+        roomType: room?.type || mockReservations[reservationIndex].roomType,
+        userName: user?.name || mockReservations[reservationIndex].userName,
+        userEmail: user?.email || mockReservations[reservationIndex].userEmail,
+        updatedAt: new Date().toISOString(),
+      };
+      resolve(mockReservations[reservationIndex]);
+    }, 500);
+  });
+}
+
+export function deleteHotelReservation(reservationId: number, hotelId: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const reservationIndex = mockReservations.findIndex(
+        (r) => r.id === reservationId && r.hotelId === hotelId
+      );
+      if (reservationIndex === -1) {
+        reject(new Error('Reservation not found'));
+        return;
+      }
+      mockReservations.splice(reservationIndex, 1);
+      resolve();
+    }, 300);
+  });
+}
+
+export function updateHotelReservationStatus(
+  reservationId: number,
+  hotelId: number,
+  status: ReservationStatus
+): Promise<ReservationListItem> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const reservationIndex = mockReservations.findIndex(
+        (r) => r.id === reservationId && r.hotelId === hotelId
+      );
+      if (reservationIndex === -1) {
+        reject(new Error('Reservation not found'));
+        return;
+      }
+      mockReservations[reservationIndex] = {
+        ...mockReservations[reservationIndex],
+        status,
+        updatedAt: new Date().toISOString(),
+      };
+      resolve(mockReservations[reservationIndex]);
+    }, 300);
+  });
+}
+
