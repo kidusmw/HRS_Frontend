@@ -1,4 +1,4 @@
-import { Search, User } from 'lucide-react';
+import { User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -25,19 +25,7 @@ export function Topbar() {
   };
 
   return (
-    <div className="flex h-16 items-center justify-between border-b bg-background px-6">
-      <div className="flex items-center gap-4">
-        {/* Optional search - can be expanded later */}
-        <div className="relative hidden md:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="h-9 w-64 rounded-md border border-input bg-background pl-10 pr-4 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        </div>
-      </div>
-
+    <div className="flex h-16 items-center justify-end border-b bg-background px-6">
       <div className="flex items-center gap-4">
         <NotificationBell />
         <DropdownMenu>
