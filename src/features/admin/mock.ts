@@ -114,3 +114,147 @@ export function getHotelNotifications(
   ].slice(0, limit);
 }
 
+// Mock user data for hotel-scoped user management
+import type { UserListItem } from '@/types/admin';
+
+let mockUsers: UserListItem[] = [
+  {
+    id: 1,
+    name: 'John Doe',
+    email: 'john.doe@hotel.com',
+    role: 'receptionist',
+    hotelId: MOCK_HOTEL_ID,
+    hotelName: 'Grand Hotel',
+    isActive: true,
+    lastActiveAt: new Date().toISOString(),
+    phoneNumber: '+1234567890',
+  },
+  {
+    id: 2,
+    name: 'Jane Smith',
+    email: 'jane.smith@hotel.com',
+    role: 'manager',
+    hotelId: MOCK_HOTEL_ID,
+    hotelName: 'Grand Hotel',
+    isActive: true,
+    lastActiveAt: new Date().toISOString(),
+    phoneNumber: '+1234567891',
+  },
+  {
+    id: 3,
+    name: 'Bob Johnson',
+    email: 'bob.johnson@hotel.com',
+    role: 'receptionist',
+    hotelId: MOCK_HOTEL_ID,
+    hotelName: 'Grand Hotel',
+    isActive: false,
+    lastActiveAt: null,
+    phoneNumber: '+1234567892',
+  },
+];
+
+export function getHotelUsers(hotelId: number = MOCK_HOTEL_ID): { data: UserListItem[] } {
+  // Filter users by hotel and exclude admin/super_admin roles
+  const filtered = mockUsers.filter(
+    (u) => u.hotelId === hotelId && u.role !== 'admin' && u.role !== 'super_admin'
+  );
+  return { data: filtered };
+}
+
+export function createHotelUser(
+  hotelId: number,
+  userData: {
+    name: string;
+    email: string;
+    role: 'receptionist' | 'manager';
+    phoneNumber: string;
+    password?: string;
+  }
+): Promise<UserListItem> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const newUser: UserListItem = {
+        id: mockUsers.length + 1,
+        ...userData,
+        hotelId,
+        hotelName: 'Grand Hotel', // Mock hotel name
+        isActive: true,
+        lastActiveAt: new Date().toISOString(),
+      };
+      mockUsers.push(newUser);
+      resolve(newUser);
+    }, 500);
+  });
+}
+
+export function updateHotelUser(
+  userId: number,
+  hotelId: number,
+  userData: {
+    name?: string;
+    email?: string;
+    role?: 'receptionist' | 'manager';
+    phoneNumber?: string;
+    password?: string;
+  }
+): Promise<UserListItem> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const userIndex = mockUsers.findIndex((u) => u.id === userId && u.hotelId === hotelId);
+      if (userIndex === -1) {
+        reject(new Error('User not found'));
+        return;
+      }
+      mockUsers[userIndex] = { ...mockUsers[userIndex], ...userData };
+      resolve(mockUsers[userIndex]);
+    }, 500);
+  });
+}
+
+export function activateHotelUser(userId: number, hotelId: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const user = mockUsers.find((u) => u.id === userId && u.hotelId === hotelId);
+      if (user) {
+        user.isActive = true;
+      }
+      resolve();
+    }, 300);
+  });
+}
+
+export function deactivateHotelUser(userId: number, hotelId: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const user = mockUsers.find((u) => u.id === userId && u.hotelId === hotelId);
+      if (user) {
+        user.isActive = false;
+      }
+      resolve();
+    }, 300);
+  });
+}
+
+export function resetHotelUserPassword(userId: number, hotelId: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      // Mock password reset - in real implementation, this would send email
+      resolve();
+    }, 500);
+  });
+}
+
+export function deleteHotelUser(userId: number, hotelId: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      const userIndex = mockUsers.findIndex((u) => u.id === userId && u.hotelId === hotelId);
+      if (userIndex === -1) {
+        reject(new Error('User not found'));
+        return;
+      }
+      mockUsers.splice(userIndex, 1);
+      resolve();
+    }, 300);
+  });
+}
+
