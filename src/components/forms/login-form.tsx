@@ -57,6 +57,9 @@ export function LoginForm({
       // Route super_admin users to super-admin dashboard
       if (user.role === 'superadmin' || user.role === 'super_admin') {
         navigate('/super-admin/dashboard')
+      } else if (user.role === 'admin') {
+        // Route admin users to admin dashboard
+        navigate('/admin/dashboard')
       } else {
         // Route other users to regular dashboard
         navigate('/dashboard')

@@ -7,6 +7,7 @@ import GoogleOAuthPopup from './features/auth/pages/GoogleOAuthPopup'
 import DashboardPage from './features/dashboard/pages/DashboardPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import { SuperAdminRoute } from './components/SuperAdminRoute'
+import { AdminRoute } from './components/AdminRoute'
 import NotFoundPage from './features/shared/NotFoundPage'
 import { Dashboard } from './features/super_admin/pages/Dashboard'
 import { Users } from './features/super_admin/pages/Users'
@@ -16,6 +17,15 @@ import { Backups } from './features/super_admin/pages/Backups'
 import { Settings } from './features/super_admin/pages/Settings'
 import { Profile } from './features/super_admin/pages/Profile'
 import { Preferences } from './features/super_admin/pages/Preferences'
+import { Dashboard as AdminDashboard } from './features/admin/pages/Dashboard'
+import { Users as AdminUsers } from './features/admin/pages/Users'
+import { Rooms } from './features/admin/pages/Rooms'
+import { Reservations } from './features/admin/pages/Reservations'
+import { Settings as AdminSettings } from './features/admin/pages/Settings'
+import { Logs as AdminLogs } from './features/admin/pages/Logs'
+import { Profile as AdminProfile } from './features/admin/pages/Profile'
+import { Backups as AdminBackups } from './features/admin/pages/Backups'
+import { Payments } from './features/admin/pages/Payments'
 
 function App() {
   return (
@@ -100,6 +110,83 @@ function App() {
           <SuperAdminRoute>
             <Preferences />
           </SuperAdminRoute>
+        }
+      />
+      {/* Admin Routes */}
+      <Route
+        path="/admin"
+        element={<Navigate to="/admin/dashboard" replace />}
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <AdminRoute>
+            <AdminUsers />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/rooms"
+        element={
+          <AdminRoute>
+            <Rooms />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/reservations"
+        element={
+          <AdminRoute>
+            <Reservations />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <AdminRoute>
+            <AdminSettings />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/logs"
+        element={
+          <AdminRoute>
+            <AdminLogs />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/profile"
+        element={
+          <AdminRoute>
+            <AdminProfile />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/backups"
+        element={
+          <AdminRoute>
+            <AdminBackups />
+          </AdminRoute>
+        }
+      />
+      <Route
+        path="/admin/payments"
+        element={
+          <AdminRoute>
+            <Payments />
+          </AdminRoute>
         }
       />
       <Route path='*' element={<NotFoundPage />} />
