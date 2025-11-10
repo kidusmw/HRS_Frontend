@@ -142,3 +142,42 @@ export interface UpdateRoomDto {
   description?: string | null;
 }
 
+export type ReservationStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+
+export interface ReservationListItem {
+  id: number;
+  hotelId: number;
+  roomId: number;
+  roomType?: string | null;
+  userId?: number | null;
+  userName?: string | null;
+  userEmail?: string | null;
+  checkIn: string;
+  checkOut: string;
+  status: ReservationStatus;
+  guests: number;
+  specialRequests?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateReservationDto {
+  roomId: number;
+  userId?: number | null;
+  checkIn: string;
+  checkOut: string;
+  status: ReservationStatus;
+  guests: number;
+  specialRequests?: string | null;
+}
+
+export interface UpdateReservationDto {
+  roomId?: number;
+  userId?: number | null;
+  checkIn?: string;
+  checkOut?: string;
+  status?: ReservationStatus;
+  guests?: number;
+  specialRequests?: string | null;
+}
+
