@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Form,
   FormControl,
@@ -82,6 +82,46 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
     },
   });
 
+  // Use a ref to track the user ID to prevent unnecessary resets
+  const userIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const currentUserId = user?.id ?? null;
+
+    // Only reset if the user ID actually changed (prevents reset on every render)
+    if (userIdRef.current !== currentUserId) {
+      userIdRef.current = currentUserId;
+
+      if (user) {
+        // Reset all form fields with fresh user data
+        form.reset({
+          name: user.name || '',
+          email: user.email || '',
+          role: (user.role && user.role !== 'client' && roles.includes(user.role as Role))
+            ? user.role
+            : 'receptionist',
+          hotelId: user.hotelId || null,
+          phoneNumber: user.phoneNumber || '',
+          password: '',
+          generatePassword: false,
+          isActive: user.isActive ?? true,
+        });
+      } else {
+        // Reset to empty values for new user
+        form.reset({
+          name: '',
+          email: '',
+          role: 'receptionist',
+          hotelId: null,
+          phoneNumber: '',
+          password: '',
+          generatePassword: true,
+          isActive: true,
+        });
+      }
+    }
+  }, [user?.id, form]);
+
   const generatePassword = form.watch('generatePassword');
   const selectedRole = form.watch('role');
 
@@ -99,13 +139,18 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
         const updateData: any = {
           name: values.name,
           email: values.email,
-          // Only update role if user is not a client (clients can't have their role changed)
-          ...(user.role !== 'client' && { role: values.role }),
           hotelId: values.hotelId || null,
           // Phone number is required for creation, but can be empty for updates (will be sent as empty string, backend handles it)
           phoneNumber: values.phoneNumber || '',
           active: values.isActive,
         };
+        
+        // Only update role if user is not a client (clients can't have their role changed)
+        // Always include role in update if user is not a client to ensure role changes are saved
+        if (user.role !== 'client') {
+          updateData.role = values.role;
+        }
+        
         if (values.password && values.password.length >= 8) {
           updateData.password = values.password;
         }
@@ -185,7 +230,6 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
               <FormLabel>Role</FormLabel>
               <Select
                 onValueChange={field.onChange}
-                defaultValue={field.value}
                 value={field.value}
               >
                 <FormControl>
