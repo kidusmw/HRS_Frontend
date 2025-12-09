@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
 import {
   flexRender,
   getCoreRowModel,
@@ -44,9 +42,9 @@ import { RoomForm } from '@/features/admin/components/RoomForm';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
 import type { RoomListItem } from '@/types/admin';
 import {
-  getHotelRooms,
-  deleteHotelRoom,
-} from '../mock';
+  getRooms,
+  deleteRoom,
+} from '../api/adminApi';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -108,12 +106,12 @@ const createColumns = (
   },
   {
     accessorKey: 'capacity',
-    header: 'Capacity',
+    header: 'Quantity',
     cell: ({ row }) => {
       const capacity = row.getValue('capacity') as number;
       return (
         <span className="text-muted-foreground">
-          {capacity} {capacity === 1 ? 'guest' : 'guests'}
+          {capacity} {capacity === 1 ? 'room' : 'rooms'}
         </span>
       );
     },
@@ -176,8 +174,6 @@ const createColumns = (
 ];
 
 export function Rooms() {
-  const currentUser = useSelector((state: RootState) => state.auth.user);
-  const hotelId = currentUser?.hotel_id || 1;
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -198,19 +194,19 @@ export function Rooms() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        // Simulate API call delay
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        const response = await getHotelRooms(hotelId);
+        const response = await getRooms({ perPage: 100 });
         setRooms(response.data);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to load rooms:', error);
-        toast.error('Failed to load rooms');
+        const errorMessage =
+          error.response?.data?.message || error.message || 'Failed to load rooms';
+        toast.error(errorMessage);
       } finally {
         setIsLoading(false);
       }
     };
     fetchData();
-  }, [hotelId]);
+  }, []);
 
   const handleEditRoom = (room: RoomListItem) => {
     setSelectedRoom(room);
@@ -222,10 +218,13 @@ export function Rooms() {
     setSelectedRoom(null);
     // Refresh rooms list
     try {
-      const response = await getHotelRooms(hotelId);
+      const response = await getRooms({ perPage: 100 });
       setRooms(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to refresh rooms:', error);
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to refresh rooms';
+      toast.error(errorMessage);
     }
   };
 
@@ -237,13 +236,13 @@ export function Rooms() {
     if (!deleteDialog.room) return;
     const roomToDelete = deleteDialog.room;
     try {
-      await deleteHotelRoom(roomToDelete.id, hotelId);
+      await deleteRoom(roomToDelete.id);
       toast.success('Room deleted successfully');
       setDeleteDialog({ open: false, room: null });
       // Refresh rooms list - remove from state immediately and then fetch fresh data
       setRooms((prevRooms) => prevRooms.filter((r) => r.id !== roomToDelete.id));
       // Fetch fresh data to ensure sync
-      const response = await getHotelRooms(hotelId);
+      const response = await getRooms({ perPage: 100 });
       setRooms(response.data);
     } catch (error: any) {
       console.error('Failed to delete room:', error);

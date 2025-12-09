@@ -1,5 +1,5 @@
 import api from '@/lib/axios';
-import type { UserListItem } from '@/types/admin';
+import type { UserListItem, RoomListItem, CreateRoomDto, UpdateRoomDto } from '@/types/admin';
 
 const BASE_URL = '/admin';
 
@@ -101,5 +101,67 @@ export const updateUser = async (
 
 export const deleteUser = async (id: number): Promise<void> => {
   await api.delete(`${BASE_URL}/users/${id}`);
+};
+
+// Rooms
+
+export interface GetRoomsParams {
+  search?: string;
+  type?: string;
+  isAvailable?: boolean;
+  page?: number;
+  perPage?: number;
+}
+
+export const getRooms = async (params?: GetRoomsParams): Promise<{
+  data: RoomListItem[];
+  links: unknown;
+  meta: unknown;
+}> => {
+  const response = await api.get(`${BASE_URL}/rooms`, { params });
+  return response.data;
+};
+
+export const getRoom = async (id: number): Promise<{ data: RoomListItem }> => {
+  const response = await api.get(`${BASE_URL}/rooms/${id}`);
+  return response.data;
+};
+
+export const createRoom = async (data: CreateRoomDto): Promise<{ data: RoomListItem }> => {
+  // Convert camelCase to snake_case for backend
+  // Note: isAvailable is not sent - it defaults to true on backend and is managed by receptionists/managers
+  const payload: any = {
+    type: data.type,
+    price: data.price,
+    capacity: data.capacity,
+  };
+  
+  if (data.description !== undefined) {
+    payload.description = data.description || null;
+  }
+  
+  const response = await api.post(`${BASE_URL}/rooms`, payload);
+  return response.data;
+};
+
+export const updateRoom = async (
+  id: number,
+  data: UpdateRoomDto
+): Promise<{ data: RoomListItem }> => {
+  // Convert camelCase to snake_case for backend
+  const payload: any = {};
+  
+  if (data.type !== undefined) payload.type = data.type;
+  if (data.price !== undefined) payload.price = data.price;
+  if (data.isAvailable !== undefined) payload.isAvailable = data.isAvailable;
+  if (data.capacity !== undefined) payload.capacity = data.capacity;
+  if (data.description !== undefined) payload.description = data.description || null;
+  
+  const response = await api.put(`${BASE_URL}/rooms/${id}`, payload);
+  return response.data;
+};
+
+export const deleteRoom = async (id: number): Promise<void> => {
+  await api.delete(`${BASE_URL}/rooms/${id}`);
 };
 

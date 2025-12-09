@@ -2,8 +2,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useEffect, useState } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
 import {
   Form,
   FormControl,
@@ -23,7 +21,6 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -34,16 +31,16 @@ import {
 } from '@/components/ui/dialog';
 import type { RoomListItem } from '@/types/admin';
 import {
-  createHotelRoom,
-  updateHotelRoom,
-} from '../mock';
+  createRoom,
+  updateRoom,
+} from '../api/adminApi';
 import { toast } from 'sonner';
 
 const roomFormSchema = z.object({
   type: z.string().min(1, 'Room type is required'),
   price: z.number().min(0, 'Price must be 0 or greater'),
-  capacity: z.number().int().min(1, 'Capacity must be at least 1'),
-  isAvailable: z.boolean(),
+  capacity: z.number().int().min(1, 'Number of rooms must be at least 1'),
+  isAvailable: z.boolean(), // Kept in schema for form state, but not sent to backend
   description: z.string().optional().nullable(),
 });
 
@@ -61,8 +58,6 @@ const roomTypes = ['Standard', 'Deluxe', 'Suite', 'Executive', 'Presidential'];
 
 export function RoomForm({ room, onSuccess, onCancel }: RoomFormProps) {
   const isEditing = !!room;
-  const currentUser = useSelector((state: RootState) => state.auth.user);
-  const hotelId = currentUser?.hotel_id || 1;
   const [showCapacityConfirm, setShowCapacityConfirm] = useState(false);
   const [pendingValues, setPendingValues] = useState<RoomFormValues | null>(null);
 
@@ -101,11 +96,14 @@ export function RoomForm({ room, onSuccess, onCancel }: RoomFormProps) {
 
   const submitRoom = async (values: RoomFormValues) => {
     try {
+      // Remove isAvailable from payload - it's managed by receptionists/managers
+      const { isAvailable, ...roomData } = values;
+      
       if (isEditing && room) {
-        await updateHotelRoom(room.id, hotelId, values);
+        await updateRoom(room.id, roomData);
         toast.success('Room updated successfully');
       } else {
-        await createHotelRoom(hotelId, values);
+        await createRoom(roomData);
         toast.success('Room created successfully');
       }
       setShowCapacityConfirm(false);
@@ -139,8 +137,8 @@ export function RoomForm({ room, onSuccess, onCancel }: RoomFormProps) {
           </h2>
           <p className="text-sm text-muted-foreground">
             {isEditing
-              ? 'Update room information and availability'
-              : 'Add a new room to your hotel inventory'}
+              ? 'Update room information'
+              : 'Add a new room type to your hotel inventory'}
           </p>
         </div>
 
@@ -206,7 +204,7 @@ export function RoomForm({ room, onSuccess, onCancel }: RoomFormProps) {
             name="capacity"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Capacity</FormLabel>
+                <FormLabel>Number of Rooms</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -221,7 +219,7 @@ export function RoomForm({ room, onSuccess, onCancel }: RoomFormProps) {
                   />
                 </FormControl>
                 <FormDescription>
-                  Maximum number of guests this room can accommodate (hotel-defined)
+                  Number of rooms of this type in your hotel
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -252,26 +250,6 @@ export function RoomForm({ room, onSuccess, onCancel }: RoomFormProps) {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="isAvailable"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Available</FormLabel>
-                <FormDescription>
-                  Unavailable rooms cannot be booked
-                </FormDescription>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
 
         <div className="flex justify-end gap-4">
           <Button type="button" variant="outline" onClick={onCancel}>
@@ -289,11 +267,11 @@ export function RoomForm({ room, onSuccess, onCancel }: RoomFormProps) {
           <DialogHeader>
             <DialogTitle>Confirm High Capacity</DialogTitle>
             <DialogDescription>
-              Are you sure you want to {isEditing ? 'update' : 'create'} a room with a capacity of{' '}
-              <strong>{pendingValues?.capacity}</strong> guests?
+              Are you sure you want to {isEditing ? 'update' : 'create'} <strong>{pendingValues?.capacity}</strong>{' '}
+              {pendingValues?.capacity === 1 ? 'room' : 'rooms'} of this type?
               <br />
               <br />
-              This exceeds the recommended limit of {SENSIBLE_CAPACITY_LIMIT} guests per room.
+              This exceeds the recommended limit of {SENSIBLE_CAPACITY_LIMIT} rooms per type.
               Please verify this is correct for your hotel.
             </DialogDescription>
           </DialogHeader>
