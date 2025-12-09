@@ -14,14 +14,11 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'rec
 import { KpiCard } from '../components/KpiCard';
 import { NotificationsPanel } from '../components/NotificationsPanel';
 import {
-  getKpis,
-  getMonthlyRevenue,
-  getBookingsTrend6m,
-  getWeeklyOccupancy,
-  getRevenueTrend6m,
   getHotelNotifications,
 } from '../mock';
+import { getDashboardMetrics } from '../api/adminApi';
 import type { NotificationItem } from '@/types/admin';
+import { toast } from 'sonner';
 
 const bookingsChartConfig = {
   bookings: {
@@ -51,16 +48,21 @@ const revenueChartConfig = {
 export function Dashboard() {
   const user = useSelector((state: RootState) => state.auth.user);
   const [isLoading, setIsLoading] = useState(true);
-  const [kpis, setKpis] = useState<ReturnType<typeof getKpis> | null>(null);
+  const [kpis, setKpis] = useState<{
+    occupancyPct: number;
+    roomsAvailable: number;
+    activeReservationsToday: number;
+    upcomingCheckins: number;
+  } | null>(null);
   const [monthlyRevenue, setMonthlyRevenue] = useState<number | null>(null);
   const [bookingsTrend, setBookingsTrend] = useState<
-    ReturnType<typeof getBookingsTrend6m>
+    Array<{ month: string; bookings: number }>
   >([]);
   const [weeklyOccupancy, setWeeklyOccupancy] = useState<
-    ReturnType<typeof getWeeklyOccupancy>
+    Array<{ week: string; occupied: number; available: number }>
   >([]);
   const [revenueTrend, setRevenueTrend] = useState<
-    ReturnType<typeof getRevenueTrend6m>
+    Array<{ month: string; revenue: number }>
   >([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
@@ -68,20 +70,41 @@ export function Dashboard() {
   const hotelId = user?.hotel_id || 1;
 
   useEffect(() => {
-    // Simulate loading delay
     const loadData = async () => {
-      setIsLoading(true);
-      // Simulate API call delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      setKpis(getKpis(hotelId));
-      setMonthlyRevenue(getMonthlyRevenue(hotelId));
-      setBookingsTrend(getBookingsTrend6m(hotelId));
-      setWeeklyOccupancy(getWeeklyOccupancy(hotelId));
-      setRevenueTrend(getRevenueTrend6m(hotelId));
-      setNotifications(getHotelNotifications(hotelId, 10));
-
-      setIsLoading(false);
+      try {
+        setIsLoading(true);
+        
+        // Fetch dashboard metrics from API
+        const metrics = await getDashboardMetrics();
+        
+        setKpis(metrics.kpis);
+        setMonthlyRevenue(metrics.monthlyRevenue);
+        setBookingsTrend(metrics.bookingTrends);
+        setWeeklyOccupancy(metrics.weeklyOccupancy);
+        setRevenueTrend(metrics.revenueTrends);
+        
+        // Notifications still use mock for now (will be implemented later)
+        setNotifications(getHotelNotifications(hotelId, 10));
+      } catch (error: any) {
+        console.error('Failed to load dashboard data:', error);
+        const errorMessage =
+          error.response?.data?.message || error.message || 'Failed to load dashboard data';
+        toast.error(errorMessage);
+        // Keep using mock data as fallback
+        setKpis({
+          occupancyPct: 0,
+          roomsAvailable: 0,
+          activeReservationsToday: 0,
+          upcomingCheckins: 0,
+        });
+        setMonthlyRevenue(0);
+        setBookingsTrend([]);
+        setWeeklyOccupancy([]);
+        setRevenueTrend([]);
+        setNotifications(getHotelNotifications(hotelId, 10));
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     loadData();
