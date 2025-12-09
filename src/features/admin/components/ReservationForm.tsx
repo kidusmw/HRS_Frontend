@@ -119,8 +119,6 @@ export function ReservationForm({ reservation, onSuccess, onCancel }: Reservatio
     }
   }, [reservation, isEditing, form]);
 
-  const selectedRoomId = form.watch('roomId');
-  const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
 
   const onSubmit = async (values: ReservationFormValues) => {
     try {
@@ -176,7 +174,7 @@ export function ReservationForm({ reservation, onSuccess, onCancel }: Reservatio
                 <SelectContent>
                   {rooms.map((room) => (
                     <SelectItem key={room.id} value={room.id.toString()}>
-                      {room.type} (Capacity: {room.capacity} guests)
+                      {room.type} (Quantity: {room.capacity} {room.capacity === 1 ? 'room' : 'rooms'})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -356,7 +354,6 @@ export function ReservationForm({ reservation, onSuccess, onCancel }: Reservatio
                   <Input
                     type="number"
                     min="1"
-                    max={selectedRoom?.capacity || 10}
                     placeholder="1"
                     value={field.value || ''}
                     onChange={(e) => {
@@ -367,9 +364,7 @@ export function ReservationForm({ reservation, onSuccess, onCancel }: Reservatio
                   />
                 </FormControl>
                 <FormDescription>
-                  {selectedRoom
-                    ? `Room capacity: ${selectedRoom.capacity} guests`
-                    : 'Number of guests'}
+                  Number of guests for this reservation
                 </FormDescription>
                 <FormMessage />
               </FormItem>

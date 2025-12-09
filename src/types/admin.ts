@@ -129,7 +129,7 @@ export interface RoomListItem {
 export interface CreateRoomDto {
   type: string;
   price: number;
-  isAvailable: boolean;
+  isAvailable?: boolean; // Optional - defaults to true on backend, managed by receptionists/managers
   capacity: number;
   description?: string | null;
 }
