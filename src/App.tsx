@@ -20,7 +20,6 @@ import { Preferences } from './features/super_admin/pages/Preferences'
 import { Dashboard as AdminDashboard } from './features/admin/pages/Dashboard'
 import { Users as AdminUsers } from './features/admin/pages/Users'
 import { Rooms } from './features/admin/pages/Rooms'
-import { Reservations } from './features/admin/pages/Reservations'
 import { Settings as AdminSettings } from './features/admin/pages/Settings'
 import { Logs as AdminLogs } from './features/admin/pages/Logs'
 import { Profile as AdminProfile } from './features/admin/pages/Profile'
@@ -138,14 +137,6 @@ function App() {
         element={
           <AdminRoute>
             <Rooms />
-          </AdminRoute>
-        }
-      />
-      <Route
-        path="/admin/reservations"
-        element={
-          <AdminRoute>
-            <Reservations />
           </AdminRoute>
         }
       />

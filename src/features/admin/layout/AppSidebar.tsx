@@ -4,10 +4,8 @@ import {
   LayoutDashboard,
   Users,
   Bed,
-  Calendar,
   Settings,
   FileText,
-  User,
   Database,
   CreditCard,
 } from 'lucide-react';
@@ -27,11 +25,6 @@ const navItems = [
     title: 'Room Management',
     href: '/admin/rooms',
     icon: Bed,
-  },
-  {
-    title: 'Reservation Management',
-    href: '/admin/reservations',
-    icon: Calendar,
   },
   {
     title: 'System Configuration',
