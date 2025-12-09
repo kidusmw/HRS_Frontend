@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
 import {
   flexRender,
   getCoreRowModel,
@@ -45,12 +43,10 @@ import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
 import type { UserListItem } from '@/types/admin';
 import { formatDistanceToNow } from 'date-fns';
 import {
-  getHotelUsers,
-  activateHotelUser,
-  deactivateHotelUser,
-  resetHotelUserPassword,
-  deleteHotelUser,
-} from '../mock';
+  getUsers,
+  deleteUser,
+  updateUser,
+} from '../api/adminApi';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -177,8 +173,6 @@ const createColumns = (
 ];
 
 export function Users() {
-  const currentUser = useSelector((state: RootState) => state.auth.user);
-  const hotelId = currentUser?.hotel_id || 1;
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -204,17 +198,19 @@ export function Users() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const response = await getHotelUsers(hotelId);
+        const response = await getUsers({ perPage: 100 });
         setUsers(response.data);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to load users:', error);
-        toast.error('Failed to load users');
+        const errorMessage =
+          error.response?.data?.message || error.message || 'Failed to load users';
+        toast.error(errorMessage);
       } finally {
         setIsLoading(false);
       }
     };
     fetchData();
-  }, [hotelId]);
+  }, []);
 
   const handleEditUser = (user: UserListItem) => {
     setSelectedUser(user);
@@ -223,36 +219,33 @@ export function Users() {
 
   const handleToggleActive = async (user: UserListItem) => {
     try {
-      if (user.isActive) {
-        await deactivateHotelUser(user.id, hotelId);
-        toast.success('User deactivated successfully');
-      } else {
-        await activateHotelUser(user.id, hotelId);
-        toast.success('User activated successfully');
-      }
+      // Use update endpoint to toggle active status
+      await updateUser(user.id, { active: !user.isActive });
+      toast.success(`User ${!user.isActive ? 'activated' : 'deactivated'} successfully`);
       // Refresh users list
-      const response = await getHotelUsers(hotelId);
+      const response = await getUsers({ perPage: 100 });
       setUsers(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to toggle user status:', error);
-      toast.error('Failed to update user status');
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to update user status';
+      toast.error(errorMessage);
     }
   };
 
-  const handleResetPassword = async (userId: number) => {
-    try {
-      const user = users.find((u) => u.id === userId);
-      await resetHotelUserPassword(userId, hotelId);
-      setResetPasswordDialog({
-        open: true,
-        userId,
-        userEmail: user?.email || null,
-      });
-      toast.success('Password reset successfully. The new password has been sent to the user\'s email.');
-    } catch (error) {
-      console.error('Failed to reset password:', error);
-      toast.error('Failed to reset password');
-    }
+  const handleResetPassword = async (_userId: number) => {
+    // Note: Password reset endpoint not yet implemented in backend
+    // For now, show a message that this feature needs to be implemented
+    toast.error('Password reset feature not yet implemented. Please update password manually.');
+    // TODO: Implement password reset endpoint in backend
+    // const user = users.find((u) => u.id === userId);
+    // await resetUserPassword(userId);
+    // setResetPasswordDialog({
+    //   open: true,
+    //   userId,
+    //   userEmail: user?.email || null,
+    // });
+    // toast.success('Password reset successfully. The new password has been sent to the user\'s email.');
   };
 
   const handleFormSuccess = async () => {
@@ -260,10 +253,13 @@ export function Users() {
     setSelectedUser(null);
     // Refresh users list
     try {
-      const response = await getHotelUsers(hotelId);
+      const response = await getUsers({ perPage: 100 });
       setUsers(response.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to refresh users:', error);
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to refresh users';
+      toast.error(errorMessage);
     }
   };
 
@@ -275,13 +271,13 @@ export function Users() {
     if (!deleteDialog.user) return;
     const userToDelete = deleteDialog.user;
     try {
-      await deleteHotelUser(userToDelete.id, hotelId);
+      await deleteUser(userToDelete.id);
       toast.success('User deleted successfully');
       setDeleteDialog({ open: false, user: null });
       // Refresh users list - remove from state immediately and then fetch fresh data
       setUsers((prevUsers) => prevUsers.filter((u) => u.id !== userToDelete.id));
       // Fetch fresh data to ensure sync
-      const response = await getHotelUsers(hotelId);
+      const response = await getUsers({ perPage: 100 });
       setUsers(response.data);
     } catch (error: any) {
       console.error('Failed to delete user:', error);

@@ -2,8 +2,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
 import {
   Form,
   FormControl,
@@ -25,9 +23,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import type { UserListItem } from '@/types/admin';
 import {
-  createHotelUser,
-  updateHotelUser,
-} from '../mock';
+  createUser,
+  updateUser,
+} from '../api/adminApi';
 import { toast } from 'sonner';
 
 const userFormSchema = z.object({
@@ -52,8 +50,6 @@ const roles: Array<'receptionist' | 'manager'> = ['receptionist', 'manager'];
 
 export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const isEditing = !!user;
-  const currentUser = useSelector((state: RootState) => state.auth.user);
-  const hotelId = currentUser?.hotel_id || 1;
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -97,14 +93,15 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
           email: values.email,
           role: values.role,
           phoneNumber: values.phoneNumber,
+          active: values.isActive,
         };
 
         // Only include password if it was provided and not auto-generated
-        if (!values.generatePassword && values.password) {
+        if (!values.generatePassword && values.password && values.password.length >= 8) {
           updateData.password = values.password;
         }
 
-        await updateHotelUser(user.id, hotelId, updateData);
+        await updateUser(user.id, updateData);
         toast.success('User updated successfully');
       } else {
         // Create user
@@ -113,14 +110,15 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
           email: values.email,
           role: values.role,
           phoneNumber: values.phoneNumber,
+          active: values.isActive,
         };
 
         // Only include password if not auto-generated
-        if (!values.generatePassword && values.password) {
+        if (!values.generatePassword && values.password && values.password.length >= 8) {
           createData.password = values.password;
         }
 
-        await createHotelUser(hotelId, createData);
+        await createUser(createData);
         toast.success('User created successfully');
       }
       onSuccess();
