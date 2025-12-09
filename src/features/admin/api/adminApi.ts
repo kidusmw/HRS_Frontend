@@ -1,5 +1,5 @@
 import api from '@/lib/axios';
-import type { UserListItem, RoomListItem, CreateRoomDto, UpdateRoomDto } from '@/types/admin';
+import type { UserListItem, RoomListItem, CreateRoomDto, UpdateRoomDto, PaymentListItem } from '@/types/admin';
 
 const BASE_URL = '/admin';
 
@@ -163,5 +163,35 @@ export const updateRoom = async (
 
 export const deleteRoom = async (id: number): Promise<void> => {
   await api.delete(`${BASE_URL}/rooms/${id}`);
+};
+
+// Payments
+
+export interface GetPaymentsParams {
+  search?: string;
+  status?: string;
+  page?: number;
+  per_page?: number;
+}
+
+export const getPayments = async (params?: GetPaymentsParams): Promise<{
+  data: PaymentListItem[];
+  links: unknown;
+  meta: {
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    per_page: number;
+    to: number | null;
+    total: number;
+  };
+}> => {
+  const response = await api.get(`${BASE_URL}/payments`, { params });
+  return response.data;
+};
+
+export const getPayment = async (id: number): Promise<{ data: PaymentListItem }> => {
+  const response = await api.get(`${BASE_URL}/payments/${id}`);
+  return response.data;
 };
 

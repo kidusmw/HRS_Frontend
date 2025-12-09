@@ -1,11 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
 import {
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
@@ -40,7 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { getHotelPayments } from '../mock';
+import { getPayments, getPayment } from '../api/adminApi';
 import type { PaymentListItem, PaymentStatus, PaymentMethod } from '@/types/admin';
 
 function getStatusBadgeVariant(status: PaymentStatus) {
@@ -171,28 +167,64 @@ const createColumns = (
 
 
 export function Payments() {
-  const currentUser = useSelector((state: RootState) => state.auth.user);
-  const hotelId = currentUser?.hotel_id || 1;
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'paidAt', desc: true },
   ]);
   const [globalFilter, setGlobalFilter] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [payments, setPayments] = useState<PaymentListItem[]>([]);
   const [selectedPayment, setSelectedPayment] = useState<PaymentListItem | null>(null);
   const [pagination, setPagination] = useState({
     pageIndex: 0,
-    pageSize: 5,
+    pageSize: 15,
   });
+  const [paginationMeta, setPaginationMeta] = useState<{
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    per_page: number;
+    to: number | null;
+    total: number;
+  } | null>(null);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(globalFilter);
+      setPagination((prev) => ({ ...prev, pageIndex: 0 })); // Reset to first page on search
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [globalFilter]);
 
   // Fetch payments
   useEffect(() => {
     const fetchPayments = async () => {
       try {
         setIsLoading(true);
-        const response = await getHotelPayments(hotelId);
+        const params: {
+          search?: string;
+          status?: string;
+          page?: number;
+          per_page?: number;
+        } = {
+          page: pagination.pageIndex + 1,
+          per_page: pagination.pageSize,
+        };
+
+        if (debouncedSearch) {
+          params.search = debouncedSearch;
+        }
+
+        if (statusFilter !== 'all') {
+          params.status = statusFilter;
+        }
+
+        const response = await getPayments(params);
         setPayments(response.data);
+        setPaginationMeta(response.meta);
       } catch (error) {
         console.error('Failed to load payments:', error);
         toast.error('Failed to load payments');
@@ -201,86 +233,95 @@ export function Payments() {
       }
     };
     fetchPayments();
-  }, [hotelId]);
+  }, [pagination.pageIndex, pagination.pageSize, debouncedSearch, statusFilter]);
 
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
-  const handleViewDetails = (payment: PaymentListItem) => {
-    setSelectedPayment(payment);
-    setIsDetailsDialogOpen(true);
+  const handleViewDetails = async (payment: PaymentListItem) => {
+    try {
+      // Fetch full payment details
+      const response = await getPayment(payment.id);
+      setSelectedPayment(response.data);
+      setIsDetailsDialogOpen(true);
+    } catch (error) {
+      console.error('Failed to load payment details:', error);
+      toast.error('Failed to load payment details');
+      // Fallback to using the payment from the list
+      setSelectedPayment(payment);
+      setIsDetailsDialogOpen(true);
+    }
   };
 
-  const handleExport = () => {
-    // Convert payments to CSV
-    const headers = [
-      'Date',
-      'Reservation',
-      'Guest',
-      'Guest Email',
-      'Amount',
-      'Currency',
-      'Payment Method',
-      'Status',
-      'Transaction ID',
-    ];
-    const rows = payments.map((payment) => [
-      format(new Date(payment.paidAt), 'yyyy-MM-dd HH:mm:ss'),
-      payment.reservationNumber || `#${payment.reservationId}`,
-      payment.guestName,
-      payment.guestEmail || '',
-      payment.amount.toString(),
-      payment.currency,
-      formatPaymentMethod(payment.paymentMethod),
-      payment.status,
-      payment.transactionId || '',
-    ]);
+  const handleExport = async () => {
+    try {
+      // Fetch all payments for export (no pagination)
+      const params: {
+        search?: string;
+        status?: string;
+        per_page?: number;
+      } = {
+        per_page: 1000, // Large number to get all payments
+      };
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
-      ),
-    ].join('\n');
+      if (globalFilter) {
+        params.search = globalFilter;
+      }
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `hotel-payments-${format(new Date(), 'yyyy-MM-dd')}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Payments exported successfully');
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+
+      const response = await getPayments(params);
+      const allPayments = response.data;
+
+      // Convert payments to CSV
+      const headers = [
+        'Date',
+        'Reservation',
+        'Guest',
+        'Guest Email',
+        'Amount',
+        'Currency',
+        'Payment Method',
+        'Status',
+        'Transaction ID',
+      ];
+      const rows = allPayments.map((payment) => [
+        format(new Date(payment.paidAt), 'yyyy-MM-dd HH:mm:ss'),
+        payment.reservationNumber || `#${payment.reservationId}`,
+        payment.guestName,
+        payment.guestEmail || '',
+        payment.amount.toString(),
+        payment.currency,
+        formatPaymentMethod(payment.paymentMethod),
+        payment.status,
+        payment.transactionId || '',
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map((row) =>
+          row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+        ),
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `hotel-payments-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Payments exported successfully');
+    } catch (error) {
+      console.error('Failed to export payments:', error);
+      toast.error('Failed to export payments');
+    }
   };
 
-  // Filter payments
-  const filteredPayments = useMemo(() => {
-    let filtered = [...payments];
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter((p) => p.status === statusFilter);
-    }
-
-    // Global search filter
-    if (globalFilter) {
-      const searchLower = globalFilter.toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.guestName.toLowerCase().includes(searchLower) ||
-          p.guestEmail?.toLowerCase().includes(searchLower) ||
-          (p.reservationNumber || `#${p.reservationId}`)
-            .toLowerCase()
-            .includes(searchLower) ||
-          p.transactionId?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    return filtered;
-  }, [payments, statusFilter, globalFilter]);
-
-  const data = useMemo(() => filteredPayments, [filteredPayments]);
+  const data = useMemo(() => payments, [payments]);
   const columns = useMemo(
     () => createColumns(handleViewDetails),
     [handleViewDetails]
@@ -290,26 +331,24 @@ export function Payments() {
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
     onPaginationChange: setPagination,
-    globalFilterFn: 'includesString',
+    manualPagination: true, // Server-side pagination
+    pageCount: paginationMeta ? paginationMeta.last_page : 0,
     state: {
       sorting,
-      globalFilter,
       pagination,
     },
     initialState: {
       pagination: {
-        pageSize: 5,
+        pageSize: 15,
       },
     },
   });
 
-  // Calculate summary statistics
+  // Calculate summary statistics from current page
+  // Note: For accurate totals, we'd need a separate endpoint for summary stats
   const summary = useMemo(() => {
     const completed = payments.filter((p) => p.status === 'completed');
     const totalRevenue = completed.reduce((sum, p) => sum + p.amount, 0);
@@ -318,12 +357,12 @@ export function Payments() {
 
     return {
       totalRevenue,
-      totalPayments: payments.length,
+      totalPayments: paginationMeta?.total ?? payments.length,
       completed: completed.length,
       pending: pending.length,
       failed: failed.length,
     };
-  }, [payments]);
+  }, [payments, paginationMeta]);
 
   if (isLoading && payments.length === 0) {
     return (
@@ -406,7 +445,13 @@ export function Payments() {
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-sm"
         />
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select
+          value={statusFilter}
+          onValueChange={(value) => {
+            setStatusFilter(value);
+            setPagination({ ...pagination, pageIndex: 0 }); // Reset to first page on filter change
+          }}
+        >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
@@ -474,17 +519,13 @@ export function Payments() {
           </div>
 
           {/* Pagination */}
-          {table.getPageCount() > 0 && (
+          {paginationMeta && paginationMeta.total > 0 && (
             <div className="flex items-center justify-between mt-4">
               <div className="text-sm text-muted-foreground">
-                Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
-                {Math.min(
-                  (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
-                  filteredPayments.length
-                )}{' '}
-                of {filteredPayments.length} payments
+                Showing {paginationMeta.from ?? 0} to {paginationMeta.to ?? 0} of{' '}
+                {paginationMeta.total} payments
               </div>
-              {table.getPageCount() > 1 && (
+              {paginationMeta.last_page > 1 && (
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -497,8 +538,8 @@ export function Payments() {
                   <div className="flex items-center gap-1">
                     {(() => {
                       const pages: (number | string)[] = [];
-                      const totalPages = table.getPageCount();
-                      const currentPage = table.getState().pagination.pageIndex + 1;
+                      const totalPages = paginationMeta.last_page;
+                      const currentPage = paginationMeta.current_page;
                       const maxVisible = 10;
 
                       if (totalPages <= maxVisible) {
