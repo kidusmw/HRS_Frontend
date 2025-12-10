@@ -1,6 +1,4 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
 import {
   flexRender,
   getCoreRowModel,
@@ -33,12 +31,25 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import type { BackupItem } from '@/types/admin';
-import { getHotelBackups, runHotelBackup, downloadHotelBackup } from '../mock';
+import { getBackups, createBackup, downloadBackup } from '../api/adminApi';
 
 function formatFileSize(bytes: number | null | undefined): string {
   if (!bytes) return '—';
-  const mb = bytes / (1024 * 1024);
-  return `${mb.toFixed(2)} MB`;
+  
+  const KB = 1024;
+  const MB = KB * 1024;
+  const GB = MB * 1024;
+  
+  if (bytes >= GB) {
+    // Show in GB for files >= 1 GB
+    return `${(bytes / GB).toFixed(2)} GB`;
+  } else if (bytes >= MB) {
+    // Show in MB for files >= 1 MB
+    return `${(bytes / MB).toFixed(2)} MB`;
+  } else {
+    // Show in KB for files < 1 MB (including files < 1 KB)
+    return `${(bytes / KB).toFixed(2)} KB`;
+  }
 }
 
 function getStatusBadgeVariant(status: BackupItem['status']) {
@@ -123,9 +134,9 @@ const createColumns = (
   },
 ];
 
+// Backups 
+// Displays the backup history for the hotel
 export function Backups() {
-  const currentUser = useSelector((state: RootState) => state.auth.user);
-  const hotelId = currentUser?.hotel_id || 1;
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'createdAt', desc: true },
   ]);
@@ -135,7 +146,7 @@ export function Backups() {
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [pagination, setPagination] = useState({
     page: 1,
-    perPage: 5,
+    perPage: 15,
     total: 0,
     lastPage: 1,
   });
@@ -145,25 +156,19 @@ export function Backups() {
     const fetchBackups = async () => {
       try {
         setIsLoading(true);
-        const response = await getHotelBackups(hotelId, {
+        const response = await getBackups({
           page: pagination.page,
-          perPage: pagination.perPage,
+          per_page: pagination.perPage,
         });
         setBackups(response.data);
-        // Extract pagination info from response
-        if (response.meta && typeof response.meta === 'object') {
-          const meta = response.meta as {
-            total?: number;
-            last_page?: number;
-            per_page?: number;
-            current_page?: number;
-          };
+        // Update pagination from API response
+        if (response.meta) {
           setPagination((prev) => ({
             ...prev,
-            total: meta.total ?? prev.total,
-            lastPage: meta.last_page ?? prev.lastPage,
-            perPage: meta.per_page ?? prev.perPage,
-            page: meta.current_page ?? prev.page,
+            total: response.meta.total ?? prev.total,
+            lastPage: response.meta.last_page ?? prev.lastPage,
+            perPage: response.meta.per_page ?? prev.perPage,
+            page: response.meta.current_page ?? prev.page,
           }));
         }
       } catch (error) {
@@ -174,7 +179,7 @@ export function Backups() {
       }
     };
     fetchBackups();
-  }, [pagination.page, pagination.perPage, hotelId]);
+  }, [pagination.page, pagination.perPage]);
 
   const data = useMemo(() => backups, [backups]);
 
@@ -185,7 +190,7 @@ export function Backups() {
     }
 
     try {
-      const blob = await downloadHotelBackup(backup.id);
+      const blob = await downloadBackup(backup.id);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -224,25 +229,19 @@ export function Backups() {
 
   const refreshBackups = async () => {
     try {
-      const response = await getHotelBackups(hotelId, {
+      const response = await getBackups({
         page: pagination.page,
-        perPage: pagination.perPage,
+        per_page: pagination.perPage,
       });
       setBackups(response.data);
-      // Extract pagination info from response
-      if (response.meta && typeof response.meta === 'object') {
-        const meta = response.meta as {
-          total?: number;
-          last_page?: number;
-          per_page?: number;
-          current_page?: number;
-        };
+      // Update pagination from API response
+      if (response.meta) {
         setPagination((prev) => ({
           ...prev,
-          total: meta.total ?? prev.total,
-          lastPage: meta.last_page ?? prev.lastPage,
-          perPage: meta.per_page ?? prev.perPage,
-          page: meta.current_page ?? prev.page,
+          total: response.meta.total ?? prev.total,
+          lastPage: response.meta.last_page ?? prev.lastPage,
+          perPage: response.meta.per_page ?? prev.perPage,
+          page: response.meta.current_page ?? prev.page,
         }));
       }
     } catch (error) {
@@ -253,29 +252,18 @@ export function Backups() {
   const handleHotelBackup = async () => {
     try {
       setIsRunningBackup(true);
-      const response = await runHotelBackup(hotelId);
+      const response = await createBackup();
       const newBackup = response.data;
       
-      // Ensure backup has 'running' status for display
-      const backupWithRunningStatus = { ...newBackup, status: 'running' as const };
-      
-      // Immediately add backup with 'running' status
-      setBackups((prev) => [backupWithRunningStatus, ...prev]);
+      // Immediately add backup to list (status will be 'queued' or 'running' from backend)
+      setBackups((prev) => [newBackup, ...prev]);
       setIsHotelBackupDialogOpen(false);
       toast.success('Hotel backup started successfully');
       
-      // After 5 seconds, update status to 'success'
+      // Refresh after a short delay to get updated status
       setTimeout(() => {
-        setBackups((prev) =>
-          prev.map((backup) =>
-            backup.id === backupWithRunningStatus.id
-              ? { ...backup, status: 'success' as const }
-              : backup
-          )
-        );
-        // Refresh to get actual backup data from server
         refreshBackups();
-      }, 5000);
+      }, 2000);
     } catch (error: any) {
       console.error('Backup failed:', error);
       const errorMessage =
