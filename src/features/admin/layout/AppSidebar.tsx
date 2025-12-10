@@ -1,4 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/app/store';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -9,6 +12,7 @@ import {
   Database,
   CreditCard,
 } from 'lucide-react';
+import { getAdminLogo } from '../api/adminApi';
 
 const navItems = [
   {
@@ -50,6 +54,27 @@ const navItems = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const currentUser = useSelector((state: RootState) => state.auth.user);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const resp = await getAdminLogo();
+        setLogoUrl(resp.data.logoUrl);
+      } catch (error) {
+        // silently ignore; sidebar will show initials fallback
+      }
+    };
+    fetchLogo();
+  }, []);
+
+  const hotelName =
+    (currentUser as any)?.hotel?.name ||
+    (currentUser as any)?.hotel_name ||
+    (currentUser as any)?.hotelName ||
+    currentUser?.name ||
+    'Hotel';
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-background">
@@ -77,6 +102,21 @@ export function AppSidebar() {
           );
         })}
       </nav>
+      <div className="border-t p-4 flex items-center gap-3">
+        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+          {logoUrl ? (
+            <img src={logoUrl} alt="Hotel logo" className="h-full w-full object-cover" />
+          ) : (
+            <span className="text-sm font-semibold">
+              {hotelName.slice(0, 2).toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold">{hotelName}</span>
+          <span className="text-xs text-muted-foreground">Hotel</span>
+        </div>
+      </div>
     </div>
   );
 }
