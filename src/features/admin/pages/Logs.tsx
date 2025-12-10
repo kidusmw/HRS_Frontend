@@ -1,6 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
 import {
   flexRender,
   getCoreRowModel,
@@ -46,7 +44,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { toast } from 'sonner';
 import type { AuditLogItem } from '@/types/admin';
-import { getHotelLogs, getHotelUsers } from '../mock';
+import { getLogs, getLog, getUsers } from '../api/adminApi';
 
 function getActionBadgeVariant(action: string) {
   if (action.includes('created')) return 'default';
@@ -118,6 +116,30 @@ function LogDetailsDialog({
   children: React.ReactElement;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [fullLog, setFullLog] = useState<AuditLogItem | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+
+  // Fetch full log details when dialog opens
+  useEffect(() => {
+    if (isOpen && log.id) {
+      setIsLoadingDetails(true);
+      // Fetch full log details from the database by id
+      getLog(log.id)
+        .then((response) => {
+          setFullLog(response.data);
+        })
+        .catch((error) => {
+          console.error('Failed to load log details:', error);
+          // Fallback to using the log from the list
+          setFullLog(log);
+        })
+        .finally(() => {
+          setIsLoadingDetails(false);
+        });
+    }
+  }, [isOpen, log.id]);
+
+  const displayLog = fullLog || log;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -129,44 +151,55 @@ function LogDetailsDialog({
             Complete information for this audit log entry
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Timestamp</p>
-              <p className="text-sm">
-                {format(new Date(log.timestamp), 'PPpp')}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">User</p>
-              <p className="text-sm">{log.userName}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Action</p>
-              <p className="text-sm">{formatAction(log.action)}</p>
-            </div>
+        {isLoadingDetails ? (
+          <div className="space-y-4">
+            <div className="h-4 bg-muted animate-pulse rounded" />
+            <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
           </div>
-          {log.meta !== undefined && log.meta !== null && (
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-2">
-                Metadata
-              </p>
-              <pre className="rounded-md bg-muted p-4 text-xs overflow-auto max-h-64">
-                {JSON.stringify(log.meta, null, 2)}
-              </pre>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Timestamp</p>
+                <p className="text-sm">
+                  {format(new Date(displayLog.timestamp), 'PPpp')}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">User</p>
+                <p className="text-sm">{displayLog.userName}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Action</p>
+                <p className="text-sm">{formatAction(displayLog.action)}</p>
+              </div>
+              {displayLog.hotelName && (
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Hotel</p>
+                  <p className="text-sm">{displayLog.hotelName}</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+            {displayLog.meta !== undefined && displayLog.meta !== null && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground mb-2">
+                  Metadata
+                </p>
+                <pre className="rounded-md bg-muted p-4 text-xs overflow-auto max-h-64">
+                  {JSON.stringify(displayLog.meta, null, 2)}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
 }
 
+// Logs 
+// Fetches logs from the database through paginated api
 export function Logs() {
-  const currentUser = useSelector((state: RootState) => state.auth.user);
-  const hotelId = currentUser?.hotel_id || 1;
-  console.log('Logs component - currentUser:', currentUser);
-  console.log('Logs component - hotelId:', hotelId);
   const [sorting, setSorting] = useState<SortingState>([
     { id: 'timestamp', desc: true },
   ]);
@@ -179,7 +212,7 @@ export function Logs() {
   const [users, setUsers] = useState<{ id: number; name: string }[]>([]);
   const [pagination, setPagination] = useState({
     page: 1,
-    perPage: 5,
+    perPage: 15,
     total: 0,
     lastPage: 1,
   });
@@ -189,7 +222,7 @@ export function Logs() {
   useEffect(() => {
     const fetchFilterData = async () => {
       try {
-        const usersResponse = await getHotelUsers(hotelId);
+        const usersResponse = await getUsers();
         setUsers(
           usersResponse.data.map((u) => ({ id: u.id, name: u.name }))
         );
@@ -198,7 +231,7 @@ export function Logs() {
       }
     };
     fetchFilterData();
-  }, [hotelId]);
+  }, []);
 
   // Reset pagination to page 1 when filters change
   useEffect(() => {
@@ -219,10 +252,10 @@ export function Logs() {
           from?: string;
           to?: string;
           page?: number;
-          perPage?: number;
+          per_page?: number;
         } = {
           page: pagination.page,
-          perPage: pagination.perPage,
+          per_page: pagination.perPage,
         };
 
         if (userFilter !== 'all') {
@@ -241,12 +274,7 @@ export function Logs() {
           params.to = format(dateTo, 'yyyy-MM-dd');
         }
 
-        const response = await getHotelLogs(hotelId, params);
-        console.log('Full response:', response);
-        console.log('Fetched logs:', response.data);
-        console.log('Hotel ID:', hotelId);
-        console.log('Params:', params);
-        console.log('Response data length:', response.data?.length);
+        const response = await getLogs(params);
         setLogs(response.data || []);
 
         // Extract unique actions for filter dropdown
@@ -261,19 +289,13 @@ export function Logs() {
         }
 
         // Update pagination from API response
-        if (response.meta && typeof response.meta === 'object') {
-          const meta = response.meta as {
-            current_page?: number;
-            per_page?: number;
-            total?: number;
-            last_page?: number;
-          };
+        if (response.meta) {
           setPagination((prev) => ({
             ...prev,
-            page: meta.current_page || prev.page,
-            perPage: meta.per_page || prev.perPage,
-            total: meta.total || 0,
-            lastPage: meta.last_page || prev.lastPage,
+            page: response.meta.current_page || prev.page,
+            perPage: response.meta.per_page || prev.perPage,
+            total: response.meta.total || 0,
+            lastPage: response.meta.last_page || prev.lastPage,
           }));
         }
       } catch (error) {
@@ -285,7 +307,7 @@ export function Logs() {
     };
 
     fetchLogs();
-  }, [dateFrom, dateTo, userFilter, actionFilter, pagination.page, pagination.perPage, hotelId]);
+  }, [dateFrom, dateTo, userFilter, actionFilter, pagination.page, pagination.perPage]);
 
   const data = useMemo(() => logs, [logs]);
   const columns = useMemo(() => createColumns(), []);
@@ -307,12 +329,6 @@ export function Logs() {
     },
   });
 
-  // Debug: Log table state
-  useEffect(() => {
-    console.log('Table rows:', table.getRowModel().rows.length);
-    console.log('Logs state:', logs.length);
-    console.log('Data:', data.length);
-  }, [table, logs, data]);
 
   const handleExport = () => {
     // Convert logs to CSV
