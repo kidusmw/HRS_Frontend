@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   flexRender,
   getCoreRowModel,
@@ -40,10 +40,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { RoomForm } from '@/features/admin/components/RoomForm';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
-import type { RoomListItem } from '@/types/admin';
+import type { RoomListItem, RoomImage } from '@/types/admin';
 import {
   getRooms,
   deleteRoom,
+  getRoomImages,
+  createRoomImages,
+  updateRoomImage,
+  deleteRoomImage,
 } from '../api/adminApi';
 import { toast } from 'sonner';
 import {
@@ -54,6 +58,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 const roomTypes = ['Standard', 'Deluxe', 'Suite', 'Executive', 'Presidential'];
 
@@ -72,7 +78,8 @@ function getTypeBadgeVariant(type: string) {
 
 const createColumns = (
   handleEditRoom: (room: RoomListItem) => void,
-  handleDeleteRoom: (room: RoomListItem) => void
+  handleDeleteRoom: (room: RoomListItem) => void,
+  handleManageImages: (room: RoomListItem) => void
 ): ColumnDef<RoomListItem>[] => [
   {
     accessorKey: 'type',
@@ -159,6 +166,9 @@ const createColumns = (
             <DropdownMenuItem onClick={() => handleEditRoom(room)}>
               Edit
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleManageImages(room)}>
+              Manage Images
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => handleDeleteRoom(room)}
@@ -188,6 +198,36 @@ export function Rooms() {
     open: boolean;
     room: RoomListItem | null;
   }>({ open: false, room: null });
+  const [imagesDialog, setImagesDialog] = useState<{
+    open: boolean;
+    room: RoomListItem | null;
+  }>({ open: false, room: null });
+  const [roomImages, setRoomImages] = useState<RoomImage[]>([]);
+  const [roomImagesLoading, setRoomImagesLoading] = useState(false);
+  const [uploadingRoomImages, setUploadingRoomImages] = useState(false);
+  const [roomImageFiles, setRoomImageFiles] = useState<File[]>([]);
+  const [roomImagePreviews, setRoomImagePreviews] = useState<string[]>([]);
+  const roomImageInputRef = useRef<HTMLInputElement | null>(null);
+  const [savingRoomImageOrder, setSavingRoomImageOrder] = useState(false);
+  const [draggingRoomImageId, setDraggingRoomImageId] = useState<number | null>(null);
+  const [draggingPendingIdx, setDraggingPendingIdx] = useState<number | null>(null);
+
+  const handleCloseImagesDialog = () => {
+    setImagesDialog({ open: false, room: null });
+    setRoomImages([]);
+    setRoomImageFiles([]);
+    setRoomImagePreviews([]);
+    setDraggingRoomImageId(null);
+    setDraggingPendingIdx(null);
+    if (roomImageInputRef.current) {
+      roomImageInputRef.current.value = '';
+    }
+  };
+
+  const handleImagesDialogDone = () => {
+    toast.success('Room images updated');
+    handleCloseImagesDialog();
+  };
 
   // Fetch rooms
   useEffect(() => {
@@ -211,6 +251,23 @@ export function Rooms() {
   const handleEditRoom = (room: RoomListItem) => {
     setSelectedRoom(room);
     setIsDrawerOpen(true);
+  };
+
+  const handleManageImages = async (room: RoomListItem) => {
+    setImagesDialog({ open: true, room });
+    setRoomImages([]);
+    setRoomImageFiles([]);
+    setRoomImagePreviews([]);
+    try {
+      setRoomImagesLoading(true);
+      const resp = await getRoomImages({ room_id: room.id, per_page: 50 });
+      setRoomImages(resp.data);
+    } catch (error: any) {
+      const msg = error.response?.data?.message || error.message || 'Failed to load room images';
+      toast.error(msg);
+    } finally {
+      setRoomImagesLoading(false);
+    }
   };
 
   const handleFormSuccess = async () => {
@@ -252,7 +309,7 @@ export function Rooms() {
     }
   };
 
-  const columns = createColumns(handleEditRoom, handleDeleteRoom);
+  const columns = createColumns(handleEditRoom, handleDeleteRoom, handleManageImages);
 
   // Update column filters when external filter states change
   useEffect(() => {
@@ -295,6 +352,151 @@ export function Rooms() {
   const handleCreateRoom = () => {
     setSelectedRoom(null);
     setIsDrawerOpen(true);
+  };
+
+  // Room images helpers
+  useEffect(() => {
+    if (!roomImageFiles.length) {
+      roomImagePreviews.forEach((url) => URL.revokeObjectURL(url));
+      setRoomImagePreviews([]);
+      return;
+    }
+    roomImagePreviews.forEach((url) => URL.revokeObjectURL(url));
+    const previews = roomImageFiles.map((f) => URL.createObjectURL(f));
+    setRoomImagePreviews(previews);
+    return () => {
+      previews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [roomImageFiles]);
+
+  const handleRoomImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const list = event.target.files ? Array.from(event.target.files) : [];
+    setRoomImageFiles(list);
+  };
+
+  const reorderPendingRoomImages = (startIndex: number, endIndex: number) => {
+    if (startIndex === endIndex) return;
+    const newFiles = Array.from(roomImageFiles);
+    const [removed] = newFiles.splice(startIndex, 1);
+    newFiles.splice(endIndex, 0, removed);
+    setRoomImageFiles(newFiles);
+  };
+
+  const handlePendingDragStart = (index: number) => setDraggingPendingIdx(index);
+  const handlePendingDragOver = (e: React.DragEvent<HTMLDivElement>, overIndex: number) => {
+    e.preventDefault();
+    if (draggingPendingIdx === null || draggingPendingIdx === overIndex) return;
+    reorderPendingRoomImages(draggingPendingIdx, overIndex);
+    setDraggingPendingIdx(overIndex);
+  };
+  const handlePendingDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDraggingPendingIdx(null);
+  };
+
+  const reorderRoomImages = (list: RoomImage[], startIndex: number, endIndex: number) => {
+    const result = Array.from(list);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    return result.map((img, idx) => ({ ...img, displayOrder: idx + 1 }));
+  };
+
+  const handleRoomImageDragStart = (id: number) => setDraggingRoomImageId(id);
+  const handleRoomImageDragOver = (e: React.DragEvent<HTMLDivElement>, overId: number) => {
+    e.preventDefault();
+    if (draggingRoomImageId === null || draggingRoomImageId === overId) return;
+    const fromIndex = roomImages.findIndex((img) => img.id === draggingRoomImageId);
+    const toIndex = roomImages.findIndex((img) => img.id === overId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    setRoomImages(reorderRoomImages(roomImages, fromIndex, toIndex));
+  };
+  const handleRoomImageDrop = async () => {
+    if (draggingRoomImageId === null) return;
+    setDraggingRoomImageId(null);
+    try {
+      setSavingRoomImageOrder(true);
+      await Promise.all(
+        roomImages.map((img) =>
+          updateRoomImage(img.id, { displayOrder: img.displayOrder })
+        )
+      );
+      toast.success('Room image order updated');
+    } catch (error: any) {
+      const msg = error.response?.data?.message || error.message || 'Failed to update order';
+      toast.error(msg);
+      if (imagesDialog.room) {
+        const resp = await getRoomImages({ room_id: imagesDialog.room.id, per_page: 50 });
+        setRoomImages(resp.data);
+      }
+    } finally {
+      setSavingRoomImageOrder(false);
+    }
+  };
+
+  const handleUploadRoomImages = async () => {
+    if (!imagesDialog.room) return;
+    // Fallback in case state didn't capture files (e.g., same file reselected)
+    const files =
+      roomImageFiles.length > 0
+        ? roomImageFiles
+        : Array.from(roomImageInputRef.current?.files ?? []);
+
+    if (!files.length) {
+      toast.error('Select at least one image');
+      return;
+    }
+
+    try {
+      setUploadingRoomImages(true);
+      await createRoomImages({
+        roomId: imagesDialog.room.id,
+        images: files,
+      });
+      toast.success('Room images uploaded');
+      setRoomImageFiles([]);
+      setRoomImagePreviews([]);
+      if (roomImageInputRef.current) {
+        roomImageInputRef.current.value = '';
+      }
+      const resp = await getRoomImages({ room_id: imagesDialog.room.id, per_page: 50 });
+      setRoomImages(resp.data);
+    } catch (error: any) {
+      const msg = error.response?.data?.message || error.message || 'Failed to upload images';
+      toast.error(msg);
+    } finally {
+      setUploadingRoomImages(false);
+    }
+  };
+
+  const handleToggleRoomImage = async (img: RoomImage) => {
+    try {
+      const resp = await updateRoomImage(img.id, { isActive: !img.isActive });
+      setRoomImages((prev) => prev.map((item) => (item.id === img.id ? resp.data : item)));
+    } catch (error: any) {
+      const msg = error.response?.data?.message || error.message || 'Failed to update image';
+      toast.error(msg);
+    }
+  };
+
+  const handleAltRoomImage = async (img: RoomImage, alt: string) => {
+    try {
+      const resp = await updateRoomImage(img.id, { altText: alt });
+      setRoomImages((prev) => prev.map((item) => (item.id === img.id ? resp.data : item)));
+    } catch (error: any) {
+      const msg = error.response?.data?.message || error.message || 'Failed to update image';
+      toast.error(msg);
+    }
+  };
+
+  const handleDeleteRoomImage = async (img: RoomImage) => {
+    try {
+      await deleteRoomImage(img.id);
+      setRoomImages((prev) => prev.filter((item) => item.id !== img.id));
+      toast.success('Room image deleted');
+    } catch (error: any) {
+      const msg = error.response?.data?.message || error.message || 'Failed to delete image';
+      toast.error(msg);
+    }
   };
 
   return (
@@ -416,6 +618,138 @@ export function Rooms() {
               </TableBody>
             </Table>
           </div>
+
+          {/* Room Images Dialog */}
+          <Dialog
+            open={imagesDialog.open}
+            onOpenChange={(open) =>
+          open ? setImagesDialog({ open, room: imagesDialog.room }) : handleCloseImagesDialog()
+            }
+          >
+            <DialogContent className="max-w-5xl">
+              <DialogHeader>
+                <DialogTitle>Room Images</DialogTitle>
+                <DialogDescription>
+                  {imagesDialog.room ? `Manage images for ${imagesDialog.room.type}` : ''}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleRoomImageFileChange}
+                    className="sm:w-1/2"
+                  />
+                  <Button onClick={handleUploadRoomImages} disabled={uploadingRoomImages}>
+                    {uploadingRoomImages ? 'Uploading...' : 'Upload Selected Images'}
+                  </Button>
+                </div>
+
+                {roomImagePreviews.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Selected (not yet uploaded):</p>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {roomImagePreviews.map((url, idx) => (
+                        <div
+                          key={url}
+                          className="rounded-lg border p-3 space-y-2 cursor-move"
+                          draggable
+                          onDragStart={() => handlePendingDragStart(idx)}
+                          onDragOver={(e) => handlePendingDragOver(e, idx)}
+                          onDrop={handlePendingDrop}
+                        >
+                          <img src={url} alt={`Selected ${idx + 1}`} className="h-24 w-full rounded-md object-cover" />
+                          <p className="text-xs text-muted-foreground truncate">
+                            {(roomImageFiles && roomImageFiles[idx]?.name) || `Image ${idx + 1}`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {roomImagesLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading images...</p>
+                ) : roomImages.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No images uploaded yet.</p>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {roomImages.map((image) => (
+                      <div
+                        key={image.id}
+                        className="rounded-lg border p-3 space-y-3 cursor-move"
+                        draggable
+                        onDragStart={() => handleRoomImageDragStart(image.id)}
+                        onDragOver={(e) => handleRoomImageDragOver(e, image.id)}
+                        onDrop={handleRoomImageDrop}
+                      >
+                        {image.imageUrl ? (
+                          <img
+                            src={image.imageUrl}
+                            alt={image.altText ?? ''}
+                            className="h-32 w-full rounded-md object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-28 items-center justify-center rounded-md bg-muted text-xs text-muted-foreground">
+                            No preview
+                          </div>
+                        )}
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center space-x-2">
+                              <Switch
+                                id={`room-img-active-${image.id}`}
+                                checked={image.isActive}
+                                onCheckedChange={() => handleToggleRoomImage(image)}
+                              />
+                              <Label htmlFor={`room-img-active-${image.id}`}>Active</Label>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteRoomImage(image)}
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor={`room-img-alt-${image.id}`}>Description</Label>
+                            <Input
+                              id={`room-img-alt-${image.id}`}
+                              defaultValue={image.altText ?? ''}
+                              onBlur={(e) => handleAltRoomImage(image, e.target.value)}
+                              placeholder="Short description for accessibility / SEO"
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">Order: {image.displayOrder}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {roomImages.length > 0 && (
+                  <div className="mt-2 flex items-center justify-end">
+                    {savingRoomImageOrder && (
+                      <span className="text-xs text-muted-foreground">Saving order...</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={handleCloseImagesDialog}>
+                  Close
+                </Button>
+                <Button onClick={handleImagesDialogDone}>
+                  Done
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Pagination */}
           <div className="flex items-center justify-end space-x-2">

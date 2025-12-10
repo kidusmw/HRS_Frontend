@@ -209,4 +209,14 @@ export interface HotelImage {
   createdAt: string | null;
 }
 
+export interface RoomImage {
+  id: number;
+  roomId: number;
+  imageUrl: string | null;
+  altText: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string | null;
+}
+
 
