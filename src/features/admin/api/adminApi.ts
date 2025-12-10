@@ -27,7 +27,9 @@ export interface AdminSettings {
   smsNotifications: boolean;
 }
 
-//
+// Update Admin Settings Dto
+// This is the data that is sent to the backend when updating the admin settings
+// It is a partial of the AdminSettings interface meaning that only the fields that are provided will be updated.
 export interface UpdateAdminSettingsDto extends Partial<AdminSettings> {
 }
 
