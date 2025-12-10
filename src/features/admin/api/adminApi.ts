@@ -1,9 +1,11 @@
 import api from '@/lib/axios';
-import type { UserListItem, RoomListItem, CreateRoomDto, UpdateRoomDto, PaymentListItem } from '@/types/admin';
+import type { UserListItem, RoomListItem, CreateRoomDto, UpdateRoomDto, PaymentListItem, AuditLogItem } from '@/types/admin';
 
 const BASE_URL = '/admin';
 
-// Dashboard
+/*
+* Dashboard
+*/ 
 export interface AdminDashboardMetrics {
   kpis: {
     occupancyPct: number;
@@ -22,7 +24,10 @@ export const getDashboardMetrics = async (): Promise<AdminDashboardMetrics> => {
   return response.data;
 };
 
-// Users
+/*
+* Users
+*/ 
+
 export interface GetUsersParams {
   search?: string;
   role?: string;
@@ -103,7 +108,9 @@ export const deleteUser = async (id: number): Promise<void> => {
   await api.delete(`${BASE_URL}/users/${id}`);
 };
 
-// Rooms
+/*
+* Rooms
+*/ 
 
 export interface GetRoomsParams {
   search?: string;
@@ -165,7 +172,9 @@ export const deleteRoom = async (id: number): Promise<void> => {
   await api.delete(`${BASE_URL}/rooms/${id}`);
 };
 
-// Payments
+/*
+* Payments
+*/ 
 
 export interface GetPaymentsParams {
   search?: string;
@@ -192,6 +201,47 @@ export const getPayments = async (params?: GetPaymentsParams): Promise<{
 
 export const getPayment = async (id: number): Promise<{ data: PaymentListItem }> => {
   const response = await api.get(`${BASE_URL}/payments/${id}`);
+  return response.data;
+};
+
+/*
+* Logs
+*/ 
+
+// Get Logs Params 
+export interface GetLogsParams {
+  userId?: number;
+  action?: string;
+  from?: string; // Date string in YYYY-MM-DD format
+  to?: string; // Date string in YYYY-MM-DD format
+  page?: number;
+  per_page?: number;
+}
+
+// Get Logs 
+// Fetches logs from the database through pahinated api
+export const getLogs = async (params?: GetLogsParams): Promise<{
+  data: AuditLogItem[]; // Array of audit log items
+  links: unknown; // Links to the next and previous pages
+  meta: {
+    current_page: number; // Current page
+    from: number | null; // Start index of the current page
+    last_page: number; // Total number of pages
+    per_page: number; // Number of items per page
+    to: number | null; // End index of the current page
+    total: number; // Total number of items
+  };
+}> => {
+  // Fetch logs from the database through paginated api with the given params
+  const response = await api.get(`${BASE_URL}/logs`, { params });
+  return response.data;
+};
+
+// Get Log 
+// Fetches a single log from the database by id
+export const getLog = async (id: number): Promise<{ data: AuditLogItem }> => {
+  // Fetch a single log from the database by id
+  const response = await api.get(`${BASE_URL}/logs/${id}`);
   return response.data;
 };
 
