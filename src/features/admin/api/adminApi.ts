@@ -1,5 +1,5 @@
 import api from '@/lib/axios';
-import type { UserListItem, RoomListItem, CreateRoomDto, UpdateRoomDto, PaymentListItem, AuditLogItem } from '@/types/admin';
+import type { UserListItem, RoomListItem, CreateRoomDto, UpdateRoomDto, PaymentListItem, AuditLogItem, BackupItem } from '@/types/admin';
 
 const BASE_URL = '/admin';
 
@@ -242,6 +242,50 @@ export const getLogs = async (params?: GetLogsParams): Promise<{
 export const getLog = async (id: number): Promise<{ data: AuditLogItem }> => {
   // Fetch a single log from the database by id
   const response = await api.get(`${BASE_URL}/logs/${id}`);
+  return response.data;
+};
+
+/*
+ * Backups
+ */ 
+
+export interface GetBackupsParams {
+  page?: number;
+  per_page?: number;
+}
+
+// Get Backups 
+// Fetches backups from the database through paginated api
+export const getBackups = async (params?: GetBackupsParams): Promise<{
+  data: BackupItem[];
+  links: unknown;
+  meta: {
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    per_page: number;
+    to: number | null;
+    total: number;
+  };
+}> => {
+  const response = await api.get(`${BASE_URL}/backups`, { params });
+  return response.data;
+};
+
+// Create Backup 
+// Creates a new backup for the hotel
+export const createBackup = async (): Promise<{ data: BackupItem }> => {
+  const response = await api.post(`${BASE_URL}/backups`);
+  return response.data;
+};
+
+// Download Backup 
+// Downloads a backup file from the database by id. Download file is a blob.
+// Blob is a binary large object. This is a file that is stored in the database.
+export const downloadBackup = async (id: number): Promise<Blob> => {
+  const response = await api.get(`${BASE_URL}/backups/${id}/download`, {
+    responseType: 'blob',
+  });
   return response.data;
 };
 
