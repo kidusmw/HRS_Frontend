@@ -8,6 +8,7 @@ import type {
   AuditLogItem,
   BackupItem,
   HotelImage,
+  RoomImage,
 } from '@/types/admin';
 
 const BASE_URL = '/admin';
@@ -456,6 +457,112 @@ export const updateHotelImage = async (
 
 export const deleteHotelImage = async (id: number): Promise<void> => {
   await api.delete(`${BASE_URL}/hotel-images/${id}`);
+};
+
+/*
+ * Room Images (Gallery)
+ */
+
+export interface GetRoomImagesParams {
+  room_id: number;
+  only_active?: boolean;
+  page?: number;
+  per_page?: number;
+}
+
+export const getRoomImages = async (
+  params: GetRoomImagesParams
+): Promise<{
+  data: RoomImage[];
+  links: unknown;
+  meta: {
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    per_page: number;
+    to: number | null;
+    total: number;
+  };
+}> => {
+  const response = await api.get(`${BASE_URL}/room-images`, { params });
+  return response.data;
+};
+
+export interface CreateRoomImagesDto {
+  roomId: number;
+  images: File[];
+  altText?: (string | null)[];
+  displayOrder?: (number | null)[];
+  isActive?: (boolean | null)[];
+}
+
+export const createRoomImages = async (
+  payload: CreateRoomImagesDto
+): Promise<{
+  data: RoomImage[];
+}> => {
+  const formData = new FormData();
+  formData.append('room_id', String(payload.roomId));
+
+  payload.images.forEach((file) => {
+    formData.append('images[]', file);
+  });
+
+  if (payload.altText) {
+    payload.altText.forEach((text) => {
+      formData.append('alt_text[]', text ?? '');
+    });
+  }
+
+  if (payload.displayOrder) {
+    payload.displayOrder.forEach((order) => {
+      if (order != null) {
+        formData.append('display_order[]', String(order));
+      } else {
+        formData.append('display_order[]', '');
+      }
+    });
+  }
+
+  if (payload.isActive) {
+    payload.isActive.forEach((active) => {
+      if (active != null) {
+        formData.append('is_active[]', active ? '1' : '0');
+      } else {
+        formData.append('is_active[]', '');
+      }
+    });
+  }
+
+  const response = await api.post(`${BASE_URL}/room-images`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+  return response.data;
+};
+
+export interface UpdateRoomImageDto {
+  altText?: string | null;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export const updateRoomImage = async (
+  id: number,
+  data: UpdateRoomImageDto
+): Promise<{ data: RoomImage }> => {
+  const payload: any = {};
+
+  if (data.altText !== undefined) payload.alt_text = data.altText;
+  if (data.displayOrder !== undefined) payload.display_order = data.displayOrder;
+  if (data.isActive !== undefined) payload.is_active = data.isActive;
+
+  const response = await api.put(`${BASE_URL}/room-images/${id}`, payload);
+  return response.data;
+};
+
+export const deleteRoomImage = async (id: number): Promise<void> => {
+  await api.delete(`${BASE_URL}/room-images/${id}`);
 };
 
 
