@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
 import {
   Form,
   FormControl,
@@ -20,23 +18,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { getHotelSettings, updateHotelSettings } from '../mock';
+import type { HotelImage } from '@/types/admin';
+import {
+  getHotelImages,
+  createHotelImages,
+  updateHotelImage,
+  deleteHotelImage,
+  getAdminSettings,
+  updateAdminSettings,
+  getAdminLogo,
+  uploadAdminLogo,
+} from '../api/adminApi';
 
 const settingsFormSchema = z.object({
-  logoUrl: z
-    .string()
-    .refine(
-      (val) =>
-        !val ||
-        val.startsWith('http://') ||
-        val.startsWith('https://') ||
-        val.startsWith('data:image/'),
-      {
-        message: 'Must be a valid URL or data URL',
-      }
-    )
-    .optional()
-    .or(z.literal('')),
   checkInTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
     message: 'Must be a valid time in HH:MM format',
   }),
@@ -54,15 +48,23 @@ const settingsFormSchema = z.object({
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
 
 export function Settings() {
-  const currentUser = useSelector((state: RootState) => state.auth.user);
-  const hotelId = currentUser?.hotel_id || 1;
   const [isLoading, setIsLoading] = useState(true);
   const [currentSettings, setCurrentSettings] = useState<any>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [images, setImages] = useState<HotelImage[]>([]);
+  const [imagesLoading, setImagesLoading] = useState(false);
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [selectedPreviews, setSelectedPreviews] = useState<string[]>([]);
+  const [imagePage, setImagePage] = useState(1);
+  const [imageLastPage, setImageLastPage] = useState(1);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [draggingPreview, setDraggingPreview] = useState<number | null>(null);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
     defaultValues: {
-      logoUrl: '',
       checkInTime: '15:00',
       checkOutTime: '11:00',
       cancellationHours: 24,
@@ -75,31 +77,38 @@ export function Settings() {
   });
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const logoUrl = form.watch('logoUrl');
 
-  // Update preview when logoUrl changes (for URL inputs)
-  useEffect(() => {
-    if (logoUrl && (logoUrl.startsWith('http://') || logoUrl.startsWith('https://'))) {
-      setLogoPreview(logoUrl);
-    } else if (logoUrl && logoUrl.startsWith('data:image/')) {
-      // Keep data URL previews (from file uploads)
-      setLogoPreview(logoUrl);
-    } else if (!logoUrl) {
-      setLogoPreview(null);
+  // Fetch hotel images (gallery)
+  const fetchImages = async (pageParam: number = 1) => {
+    try {
+      setImagesLoading(true);
+      const response = await getHotelImages({ page: pageParam, per_page: 12 });
+      setImages(response.data);
+      const meta = response.meta as { current_page: number; last_page: number };
+      setImagePage(meta.current_page);
+      setImageLastPage(meta.last_page);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load hotel images');
+    } finally {
+      setImagesLoading(false);
     }
-  }, [logoUrl]);
+  };
 
   // Fetch current settings
   useEffect(() => {
     const fetchSettings = async () => {
       try {
         setIsLoading(true);
-        const response = await getHotelSettings(hotelId);
-        const settings = response.data;
+        const [settingsResponse, logoResponse] = await Promise.all([
+          getAdminSettings(),
+          getAdminLogo(),
+        ]);
+        const settings = settingsResponse.data;
+        const logo = logoResponse.data;
         setCurrentSettings(settings);
 
         form.reset({
-          logoUrl: settings.logoUrl || '',
           checkInTime: settings.checkInTime || '15:00',
           checkOutTime: settings.checkOutTime || '11:00',
           cancellationHours: settings.cancellationHours || 24,
@@ -110,8 +119,11 @@ export function Settings() {
           smsNotifications: settings.smsNotifications ?? false,
         });
 
-        if (settings.logoUrl) {
-          setLogoPreview(settings.logoUrl);
+        if (logo.logoUrl) {
+          setLogoPreview(logo.logoUrl);
+          setLogoFile(null);
+        } else {
+          setLogoPreview(null);
         }
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -122,30 +134,201 @@ export function Settings() {
     };
 
     fetchSettings();
-  }, [hotelId, form]);
+  }, [form]);
+
+  // Initial load of images
+  useEffect(() => {
+    void fetchImages(1);
+  }, []);
 
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setLogoPreview(result);
-        form.setValue('logoUrl', result);
-      };
-      reader.readAsDataURL(file);
+      setLogoFile(file);
+      const objectUrl = URL.createObjectURL(file);
+      setLogoPreview(objectUrl);
     }
   };
 
   const handleRemoveLogo = () => {
+    if (logoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(logoPreview);
+    }
+    setLogoFile(null);
     setLogoPreview(null);
-    form.setValue('logoUrl', '');
+  };
+
+  const handleImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const list = event.target.files ? Array.from(event.target.files) : [];
+    setFiles(list);
+  };
+
+  useEffect(() => {
+    if (!files || files.length === 0) {
+      selectedPreviews.forEach((url) => URL.revokeObjectURL(url));
+      setSelectedPreviews([]);
+      return;
+    }
+    selectedPreviews.forEach((url) => URL.revokeObjectURL(url));
+    const previews = files.map((file) => URL.createObjectURL(file));
+    setSelectedPreviews(previews);
+    return () => {
+      previews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [files]);
+
+  const handleUploadImages = async () => {
+    if (!files || files.length === 0) {
+      toast.error('Please select at least one image');
+      return;
+    }
+
+    try {
+      setUploadingImages(true);
+      // eslint-disable-next-line no-console
+      console.log('[gallery] uploading images', files.map((f) => ({ name: f.name, size: f.size, type: f.type })));
+      await createHotelImages({
+        images: files,
+      });
+      // eslint-disable-next-line no-console
+      console.log('[gallery] uploaded images');
+
+      toast.success('Images uploaded successfully');
+      setFiles([]);
+      setSelectedPreviews([]);
+      await fetchImages(imagePage);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to upload images');
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  const handleToggleImageActive = async (image: HotelImage) => {
+    try {
+      const updated = await updateHotelImage(image.id, { isActive: !image.isActive });
+      setImages((prev) => prev.map((img) => (img.id === image.id ? updated.data : img)));
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update image status');
+    }
+  };
+
+  const handleAltTextChange = async (image: HotelImage, altText: string) => {
+    try {
+      const updated = await updateHotelImage(image.id, { altText });
+      setImages((prev) => prev.map((img) => (img.id === image.id ? updated.data : img)));
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update image description');
+    }
+  };
+
+  const handleDeleteImage = async (image: HotelImage) => {
+    if (!window.confirm('Delete this image?')) return;
+    try {
+      await deleteHotelImage(image.id);
+      setImages((prev) => prev.filter((img) => img.id !== image.id));
+      toast.success('Image deleted');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to delete image');
+    }
+  };
+
+  const handlePrevImagePage = () => {
+    if (imagePage > 1) {
+      void fetchImages(imagePage - 1);
+    }
+  };
+
+  const handleNextImagePage = () => {
+    if (imagePage < imageLastPage) {
+      void fetchImages(imagePage + 1);
+    }
+  };
+
+  // Reorder pending (not yet uploaded) files/previews
+  const reorderPending = (startIndex: number, endIndex: number) => {
+    if (startIndex === endIndex) return;
+    const newFiles = Array.from(files);
+    const [removedFile] = newFiles.splice(startIndex, 1);
+    newFiles.splice(endIndex, 0, removedFile);
+    setFiles(newFiles);
+  };
+
+  const handlePreviewDragStart = (index: number) => setDraggingPreview(index);
+
+  const handlePreviewDragOver = (event: React.DragEvent<HTMLDivElement>, overIndex: number) => {
+    event.preventDefault();
+    if (draggingPreview === null || draggingPreview === overIndex) return;
+    reorderPending(draggingPreview, overIndex);
+    setDraggingPreview(overIndex);
+  };
+
+  const handlePreviewDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDraggingPreview(null);
+  };
+
+  const reorderImages = (list: HotelImage[], startIndex: number, endIndex: number) => {
+    const result = Array.from(list);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    return result.map((img, idx) => ({ ...img, displayOrder: idx + 1 }));
+  };
+
+  const handleDragStart = (id: number) => setDraggingId(id);
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>, overId: number) => {
+    event.preventDefault();
+    if (draggingId === null || draggingId === overId) return;
+    const fromIndex = images.findIndex((img) => img.id === draggingId);
+    const toIndex = images.findIndex((img) => img.id === overId);
+    if (fromIndex === -1 || toIndex === -1) return;
+    setImages(reorderImages(images, fromIndex, toIndex));
+  };
+
+  const handleDrop = async () => {
+    if (draggingId === null) return;
+    setDraggingId(null);
+    try {
+      setSavingOrder(true);
+      await Promise.all(
+        images.map((img) =>
+          updateHotelImage(img.id, { displayOrder: img.displayOrder })
+        )
+      );
+      toast.success('Image order updated');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update order');
+      // refresh from server to restore order
+      await fetchImages(imagePage);
+    } finally {
+      setSavingOrder(false);
+    }
   };
 
   const onSubmit = async (values: SettingsFormValues) => {
     try {
-      const response = await updateHotelSettings(hotelId, {
-        logoUrl: values.logoUrl || null,
+      // If there are queued gallery images, upload them first
+      if (files.length > 0) {
+        setUploadingImages(true);
+        await createHotelImages({ images: files });
+        setFiles([]);
+        setSelectedPreviews([]);
+        await fetchImages(imagePage);
+      }
+
+      // Upload logo separately if provided
+      if (logoFile) {
+        await uploadAdminLogo(logoFile);
+      }
+
+      // Save settings (JSON)
+      const settingsPayload = {
         checkInTime: values.checkInTime,
         checkOutTime: values.checkOutTime,
         cancellationHours: values.cancellationHours,
@@ -154,16 +337,16 @@ export function Settings() {
         depositPercentage: values.requireDeposit ? values.depositPercentage : 0,
         emailNotifications: values.emailNotifications,
         smsNotifications: values.smsNotifications,
-      });
+      };
 
+      const response = await updateAdminSettings(settingsPayload);
       const updatedSettings = response.data;
       setCurrentSettings(updatedSettings);
 
-      if (updatedSettings.logoUrl) {
-        setLogoPreview(updatedSettings.logoUrl);
-      } else {
-        setLogoPreview(null);
-      }
+      // Refresh logo from server in case it changed
+      const logoResp = await getAdminLogo();
+      setLogoPreview(logoResp.data.logoUrl || null);
+      setLogoFile(null);
 
       toast.success('Settings saved successfully');
     } catch (error: any) {
@@ -171,13 +354,14 @@ export function Settings() {
       const errorMessage =
         error.response?.data?.message || error.message || 'Failed to save settings';
       toast.error(errorMessage);
+    } finally {
+      setUploadingImages(false);
     }
   };
 
   const handleReset = () => {
     if (currentSettings) {
       form.reset({
-        logoUrl: currentSettings.logoUrl || '',
         checkInTime: currentSettings.checkInTime || '15:00',
         checkOutTime: currentSettings.checkOutTime || '11:00',
         cancellationHours: currentSettings.cancellationHours || 24,
@@ -225,7 +409,11 @@ export function Settings() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 relative">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          encType="multipart/form-data"
+          className="space-y-6 relative"
+        >
           {/* Branding Section */}
           <Card>
             <CardHeader>
@@ -233,10 +421,6 @@ export function Settings() {
               <CardDescription>Customize your hotel's appearance</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="logoUrl"
-                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Hotel Logo</FormLabel>
                     <FormControl>
@@ -249,9 +433,9 @@ export function Settings() {
                                 alt="Logo preview"
                                 className="h-20 w-auto border rounded"
                                 onError={() => {
-                                  toast.error('Failed to load image from URL');
+                              toast.error('Failed to load image');
                                   setLogoPreview(null);
-                                  form.setValue('logoUrl', '');
+                              handleRemoveLogo();
                                 }}
                               />
                               <Button
@@ -280,16 +464,7 @@ export function Settings() {
                                   </span>
                                 </Button>
                               </label>
-                              <span className="text-sm text-muted-foreground">
-                                Or enter a different URL
-                              </span>
                             </div>
-                            <Input
-                              type="url"
-                              placeholder="https://example.com/logo.png"
-                              {...field}
-                              value={field.value || ''}
-                            />
                           </div>
                         ) : (
                           <div className="space-y-4">
@@ -309,27 +484,150 @@ export function Settings() {
                                   </span>
                                 </Button>
                               </label>
-                              <span className="text-sm text-muted-foreground">
-                                Or enter a URL
-                              </span>
-                            </div>
-                            <Input
-                              type="url"
-                              placeholder="https://example.com/logo.png"
-                              {...field}
-                              value={field.value || ''}
-                            />
-                          </div>
-                        )}
+                        </div>
                       </div>
-                    </FormControl>
-                    <FormDescription>
-                      Upload or provide URL for your hotel logo
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    )}
+                  </div>
+                </FormControl>
+                <FormDescription>Upload your hotel logo (image file)</FormDescription>
+              </FormItem>
+            </CardContent>
+          </Card>
+
+          {/* Hotel Gallery */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Hotel Gallery</CardTitle>
+              <CardDescription>Upload and manage images displayed for this hotel</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageFileChange}
+                  className="sm:w-1/2"
+                />
+                <Button onClick={handleUploadImages} disabled={uploadingImages}>
+                  {uploadingImages ? 'Uploading...' : 'Upload Selected Images'}
+                </Button>
+              </div>
+          {selectedPreviews.length > 0 && (
+            <div className="mt-2">
+              <p className="text-sm text-muted-foreground mb-2">Selected (not yet uploaded):</p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                {selectedPreviews.map((url, idx) => (
+                  <div
+                    key={url}
+                    className="rounded-lg border p-2 space-y-2 cursor-move"
+                    draggable
+                    onDragStart={() => handlePreviewDragStart(idx)}
+                    onDragOver={(e) => handlePreviewDragOver(e, idx)}
+                    onDrop={handlePreviewDrop}
+                  >
+                    <img
+                      src={url}
+                      alt={`Selected ${idx + 1}`}
+                      className="h-20 w-full rounded-md object-cover"
+                    />
+                    <p className="text-xs text-muted-foreground truncate">
+                      {(files && files[idx]?.name) || `Image ${idx + 1}`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+              {imagesLoading ? (
+                <p className="text-sm text-muted-foreground">Loading images...</p>
+              ) : images.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No images uploaded yet.</p>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-3">
+                  {images.map((image) => (
+                    <div
+                      key={image.id}
+                      className="rounded-lg border p-2 space-y-2 cursor-move"
+                      draggable
+                      onDragStart={() => handleDragStart(image.id)}
+                      onDragOver={(e) => handleDragOver(e, image.id)}
+                      onDrop={handleDrop}
+                    >
+                      {image.imageUrl ? (
+                        <img
+                          src={image.imageUrl}
+                          alt={image.altText ?? ''}
+                          className="h-28 w-full rounded-md object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-28 items-center justify-center rounded-md bg-muted text-xs text-muted-foreground">
+                          No preview
+                            </div>
+                      )}
+                      <div className="space-y-2">
+                        <div className="space-y-1">
+                          <FormLabel htmlFor={`img-alt-${image.id}`}>Description</FormLabel>
+                            <Input
+                            id={`img-alt-${image.id}`}
+                            defaultValue={image.altText ?? ''}
+                            onBlur={(e) => handleAltTextChange(image, e.target.value)}
+                            placeholder="Short description for accessibility / SEO"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              id={`img-active-${image.id}`}
+                              checked={image.isActive}
+                              onCheckedChange={() => handleToggleImageActive(image)}
+                            />
+                            <FormLabel htmlFor={`img-active-${image.id}`}>Active</FormLabel>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteImage(image)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Order: {image.displayOrder}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {images.length > 0 && (
+                <div className="mt-2 flex items-center justify-between">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrevImagePage}
+                    disabled={imagePage <= 1}
+                  >
+                    Previous
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {imagePage} of {imageLastPage}
+                  </span>
+                  {savingOrder && (
+                    <span className="text-xs text-muted-foreground">Saving order...</span>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextImagePage}
+                    disabled={imagePage >= imageLastPage}
+                  >
+                    Next
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -531,6 +829,7 @@ export function Settings() {
             </CardContent>
           </Card>
 
+          {/* Save Settings Button */}
           <div className="sticky bottom-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t pt-4 pb-4 mt-6 z-10">
             <div className="flex justify-end gap-4">
               <Button

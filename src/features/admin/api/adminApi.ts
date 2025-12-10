@@ -1,7 +1,71 @@
 import api from '@/lib/axios';
-import type { UserListItem, RoomListItem, CreateRoomDto, UpdateRoomDto, PaymentListItem, AuditLogItem, BackupItem } from '@/types/admin';
+import type {
+  UserListItem,
+  RoomListItem,
+  CreateRoomDto,
+  UpdateRoomDto,
+  PaymentListItem,
+  AuditLogItem,
+  BackupItem,
+  HotelImage,
+} from '@/types/admin';
 
 const BASE_URL = '/admin';
+
+/*
+ * Settings
+ */
+
+export interface AdminSettings {
+  checkInTime: string;
+  checkOutTime: string;
+  cancellationHours: number;
+  allowOnlineBooking: boolean;
+  requireDeposit: boolean;
+  depositPercentage: number;
+  emailNotifications: boolean;
+  smsNotifications: boolean;
+}
+
+//
+export interface UpdateAdminSettingsDto extends Partial<AdminSettings> {
+}
+
+export const getAdminSettings = async (): Promise<{ data: AdminSettings }> => {
+  const response = await api.get(`${BASE_URL}/settings`);
+  return response.data;
+};
+
+export const updateAdminSettings = async (
+  data: UpdateAdminSettingsDto
+): Promise<{ data: AdminSettings }> => {
+  const response = await api.put(`${BASE_URL}/settings`, data);
+  return response.data;
+};
+
+/*
+ * Hotel Logo
+ */
+
+export interface AdminLogo {
+  hotelId: number;
+  logoUrl: string | null;
+}
+
+export const getAdminLogo = async (): Promise<{ data: AdminLogo }> => {
+  const response = await api.get(`${BASE_URL}/hotel-logo`);
+  return response.data;
+};
+
+export const uploadAdminLogo = async (logoFile: File): Promise<{ data: AdminLogo }> => {
+  const formData = new FormData();
+  formData.append('logo', logoFile);
+
+  const response = await api.post(`${BASE_URL}/hotel-logo`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
 
 /*
 * Dashboard
@@ -288,4 +352,108 @@ export const downloadBackup = async (id: number): Promise<Blob> => {
   });
   return response.data;
 };
+
+/*
+ * Hotel Images (Gallery)
+ */
+
+export interface GetHotelImagesParams {
+  only_active?: boolean;
+  page?: number;
+  per_page?: number;
+}
+
+export const getHotelImages = async (
+  params?: GetHotelImagesParams
+): Promise<{
+  data: HotelImage[];
+  links: unknown;
+  meta: {
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    per_page: number;
+    to: number | null;
+    total: number;
+  };
+}> => {
+  const response = await api.get(`${BASE_URL}/hotel-images`, { params });
+  return response.data;
+};
+
+export interface CreateHotelImagesDto {
+  images: File[];
+  altText?: (string | null)[];
+  displayOrder?: (number | null)[];
+  isActive?: (boolean | null)[];
+}
+
+export const createHotelImages = async (
+  payload: CreateHotelImagesDto
+): Promise<{
+  data: HotelImage[];
+}> => {
+  const formData = new FormData();
+
+  payload.images.forEach((file) => {
+    formData.append('images[]', file);
+  });
+
+  if (payload.altText) {
+    payload.altText.forEach((text) => {
+      formData.append('alt_text[]', text ?? '');
+    });
+  }
+
+  if (payload.displayOrder) {
+    payload.displayOrder.forEach((order) => {
+      if (order != null) {
+        formData.append('display_order[]', String(order));
+      } else {
+        formData.append('display_order[]', '');
+      }
+    });
+  }
+
+  if (payload.isActive) {
+    payload.isActive.forEach((active) => {
+      if (active != null) {
+        formData.append('is_active[]', active ? '1' : '0');
+      } else {
+        formData.append('is_active[]', '');
+      }
+    });
+  }
+
+  const response = await api.post(`${BASE_URL}/hotel-images`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+  return response.data;
+};
+
+export interface UpdateHotelImageDto {
+  altText?: string | null;
+  displayOrder?: number;
+  isActive?: boolean;
+}
+
+export const updateHotelImage = async (
+  id: number,
+  data: UpdateHotelImageDto
+): Promise<{ data: HotelImage }> => {
+  const payload: any = {};
+
+  if (data.altText !== undefined) payload.alt_text = data.altText;
+  if (data.displayOrder !== undefined) payload.display_order = data.displayOrder;
+  if (data.isActive !== undefined) payload.is_active = data.isActive;
+
+  const response = await api.put(`${BASE_URL}/hotel-images/${id}`, payload);
+  return response.data;
+};
+
+export const deleteHotelImage = async (id: number): Promise<void> => {
+  await api.delete(`${BASE_URL}/hotel-images/${id}`);
+};
+
 

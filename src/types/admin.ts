@@ -199,3 +199,14 @@ export interface PaymentListItem {
   createdAt: string;
 }
 
+export interface HotelImage {
+  id: number;
+  hotelId: number;
+  imageUrl: string | null;
+  altText: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string | null;
+}
+
+
