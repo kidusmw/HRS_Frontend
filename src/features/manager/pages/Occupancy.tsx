@@ -1,9 +1,20 @@
+import { useMemo, useState } from 'react';
 import { AlertTriangle, Bell, Gauge, Hotel } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { managerAlerts, managerOccupancy } from '@/features/manager/mock';
+import { Button } from '@/components/ui/button';
 
 export function Occupancy() {
+  const [alertPage, setAlertPage] = useState(1);
+  const ALERT_PAGE_SIZE = 5;
+
+  const alertTotalPages = Math.max(1, Math.ceil(managerAlerts.length / ALERT_PAGE_SIZE));
+  const alertPageData = useMemo(() => {
+    const start = (alertPage - 1) * ALERT_PAGE_SIZE;
+    return managerAlerts.slice(start, start + ALERT_PAGE_SIZE);
+  }, [alertPage]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -45,7 +56,7 @@ export function Occupancy() {
           <CardDescription>System and hotel alerts (mocked)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {managerAlerts.map((alert) => (
+          {alertPageData.map((alert) => (
             <div
               key={alert.id}
               className="flex items-start justify-between rounded-lg border p-3 text-sm"
@@ -74,6 +85,34 @@ export function Occupancy() {
               </Badge>
             </div>
           ))}
+          {managerAlerts.length === 0 && (
+            <div className="text-sm text-muted-foreground">No alerts.</div>
+          )}
+          {managerAlerts.length > 0 && (
+            <div className="flex items-center justify-between pt-2">
+              <span className="text-xs text-muted-foreground">
+                Page {alertPage} of {alertTotalPages}
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAlertPage((p) => Math.max(1, p - 1))}
+                  disabled={alertPage === 1}
+                >
+                  Prev
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAlertPage((p) => Math.min(alertTotalPages, p + 1))}
+                  disabled={alertPage === alertTotalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
