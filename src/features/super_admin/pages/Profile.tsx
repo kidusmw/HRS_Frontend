@@ -1,10 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from '@/app/store';
-import { logoutUserThunk } from '@/features/auth/authSlice';
+import { logoutUserThunk, setUser } from '@/features/auth/authSlice';
 import {
   Form,
   FormControl,
@@ -33,6 +33,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import { getProfile, updatePassword, updateProfile } from '@/features/auth/api/authApi';
 
 const profileFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -58,6 +60,8 @@ export function Profile() {
   const user = useSelector((state: RootState) => state.auth.user);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const profileForm = useForm<ProfileFormValues>({
@@ -77,6 +81,32 @@ export function Profile() {
       confirmPassword: '',
     },
   });
+
+  const resolvedAvatar = avatarPreview || (user as any)?.avatarUrl || (user as any)?.avatar_url || null;
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoadingProfile(true);
+        const resp = await getProfile();
+        dispatch(setUser(resp.data));
+        profileForm.reset({
+          name: resp.data.name,
+          email: resp.data.email,
+          avatar: undefined,
+        });
+        setAvatarPreview(resp.data.avatarUrl || (resp.data as any)?.avatar_url || null);
+        setRemoveAvatar(false);
+      } catch (error: any) {
+        console.error('Failed to load profile:', error);
+        toast.error(error.response?.data?.message || error.message || 'Failed to load profile');
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+    fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,6 +129,7 @@ export function Profile() {
       }
       // Set the file in the form
       profileForm.setValue('avatar', file, { shouldValidate: true });
+      setRemoveAvatar(false);
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -110,6 +141,7 @@ export function Profile() {
 
   const handleRemoveAvatar = () => {
     setAvatarPreview(null);
+    setRemoveAvatar(true);
     profileForm.setValue('avatar', undefined);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -118,33 +150,48 @@ export function Profile() {
 
   const onSubmitProfile = async (values: ProfileFormValues) => {
     try {
-      // TODO: Replace with actual API call
-      const formData = new FormData();
-      formData.append('name', values.name);
-      formData.append('email', values.email);
-      if (values.avatar) {
-        formData.append('avatar', values.avatar);
-      }
-      console.log('Updating profile:', values);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // Show success toast
+      const resp = await updateProfile({
+        name: values.name,
+        email: values.email,
+        avatar: values.avatar instanceof File ? values.avatar : null,
+        removeAvatar,
+      });
+      dispatch(setUser(resp.data));
+      profileForm.reset({
+        name: resp.data.name,
+        email: resp.data.email,
+        avatar: undefined,
+      });
+      setAvatarPreview(resp.data.avatarUrl || (resp.data as any)?.avatar_url || null);
+      setRemoveAvatar(false);
+      toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
-      // Show error toast
+      const validation = (error as any)?.response?.data?.errors as Record<string, string[]> | undefined;
+      const firstValidationError = validation ? Object.values(validation)?.[0]?.[0] : null;
+      const message =
+        firstValidationError ||
+        (error as any)?.response?.data?.message ||
+        (error as any)?.message ||
+        'Failed to update profile';
+      toast.error(message);
     }
   };
 
-  const onSubmitPassword = async (_values: PasswordFormValues) => {
+  const onSubmitPassword = async (values: PasswordFormValues) => {
     try {
-      // TODO: Replace with actual API call
-      console.log('Changing password...');
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await updatePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+        confirmPassword: values.confirmPassword,
+      });
       setIsPasswordDialogOpen(false);
       passwordForm.reset();
-      // Show success toast
+      toast.success('Password changed successfully');
     } catch (error) {
       console.error('Error changing password:', error);
-      // Show error toast
+      const message = (error as any)?.response?.data?.message || (error as any)?.message || 'Failed to change password';
+      toast.error(message);
     }
   };
 
@@ -190,8 +237,8 @@ export function Profile() {
         <CardContent className="space-y-6">
           <div className="flex items-center gap-6">
             <Avatar className="h-24 w-24">
-              {avatarPreview || (user as any)?.avatar_url ? (
-                <AvatarImage src={avatarPreview || (user as any)?.avatar_url} alt={user.name} />
+              {resolvedAvatar ? (
+                <AvatarImage src={resolvedAvatar} alt={user.name} />
               ) : null}
               <AvatarFallback className="text-2xl">
                 {getInitials(user.name)}
@@ -269,8 +316,8 @@ export function Profile() {
                     <FormLabel>Profile Picture</FormLabel>
                     <div className="flex items-center gap-4">
                       <Avatar className="h-20 w-20">
-                        {avatarPreview || (user as any)?.avatar_url ? (
-                          <AvatarImage src={avatarPreview || (user as any)?.avatar_url} alt={user.name} />
+                        {resolvedAvatar ? (
+                          <AvatarImage src={resolvedAvatar} alt={user.name} />
                         ) : null}
                         <AvatarFallback className="text-xl">
                           {getInitials(user.name)}
@@ -289,7 +336,7 @@ export function Profile() {
                             }}
                             className="cursor-pointer"
                           />
-                          {(avatarPreview || (user as any)?.avatar_url) && (
+                          {resolvedAvatar && (
                             <Button
                               type="button"
                               variant="outline"
@@ -345,9 +392,9 @@ export function Profile() {
               <div className="flex justify-end">
                 <Button
                   type="submit"
-                  disabled={profileForm.formState.isSubmitting}
+                  disabled={profileForm.formState.isSubmitting || loadingProfile}
                 >
-                  {profileForm.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+                  {profileForm.formState.isSubmitting || loadingProfile ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
             </form>
@@ -364,7 +411,7 @@ export function Profile() {
         <CardContent>
           <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline">Change Password</Button>
+                    <Button variant="outline">Change Password</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>

@@ -5,10 +5,17 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  hotel_id?: number | null;
+  hotel_id?: number | null; // snake_case from login payload
+  hotelId?: number | null; // camelCase from profile resource
+  hotelName?: string | null;
   email_verified_at?: string | null;
   created_at?: string;
   updated_at?: string;
+  phoneNumber?: string | null;
+  avatarUrl?: string | null;
+  avatar_url?: string | null; // fallback for legacy shape
+  isActive?: boolean;
+  lastActiveAt?: string | null;
 }
 
 export interface AuthState {
