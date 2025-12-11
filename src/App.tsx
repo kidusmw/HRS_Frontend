@@ -1,10 +1,11 @@
 import { Route, Routes, Navigate } from 'react-router-dom'
+import { useSelector } from 'react-redux'
+import type { RootState } from './app/store'
 import LoginPage from './features/auth/pages/LoginPage'
 import RegisterPage from './features/auth/pages/RegisterPage'
 import VerifyEmailPage from './features/auth/pages/VerifyEmailPage'
 import { ResetPasswordPage } from './features/auth/pages/ResetPasswordPage'
 import GoogleOAuthPopup from './features/auth/pages/GoogleOAuthPopup'
-import DashboardPage from './features/dashboard/pages/DashboardPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import { SuperAdminRoute } from './components/SuperAdminRoute'
 import { AdminRoute } from './components/AdminRoute'
@@ -32,6 +33,39 @@ import { Reports as ManagerReports } from './features/manager/pages/Reports'
 import { Occupancy as ManagerOccupancy } from './features/manager/pages/Occupancy'
 import { Operations as ManagerOperations } from './features/manager/pages/Operations'
 import { Profile as ManagerProfile } from './features/manager/pages/Profile'
+import { Employees as ManagerEmployees } from './features/manager/pages/Employees'
+import { Overrides as ManagerOverrides } from './features/manager/pages/Overrides'
+
+function RoleRedirect() {
+  const user = useSelector((state: RootState) => state.auth.user)
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (user.role === 'manager') {
+    return <Navigate to="/manager/dashboard" replace />
+  }
+
+  if (user.role === 'admin') {
+    return <Navigate to="/admin/dashboard" replace />
+  }
+
+  if (user.role === 'super_admin' || user.role === 'superadmin') {
+    return <Navigate to="/super-admin/dashboard" replace />
+  }
+
+  return (
+    <div className="flex h-screen items-center justify-center">
+      <div className="space-y-2 text-center">
+        <p className="text-lg font-semibold">Welcome</p>
+        <p className="text-muted-foreground">
+          No role-specific dashboard is configured for your role.
+        </p>
+      </div>
+    </div>
+  )
+}
 
 function App() {
   return (
@@ -46,7 +80,7 @@ function App() {
         path='/dashboard' 
         element={
           <ProtectedRoute>
-            <DashboardPage />
+            <RoleRedirect />
           </ProtectedRoute>
         } 
       />
@@ -237,6 +271,22 @@ function App() {
         element={
           <ManagerRoute>
             <ManagerProfile />
+          </ManagerRoute>
+        }
+      />
+      <Route
+        path="/manager/employees"
+        element={
+          <ManagerRoute>
+            <ManagerEmployees />
+          </ManagerRoute>
+        }
+      />
+      <Route
+        path="/manager/overrides"
+        element={
+          <ManagerRoute>
+            <ManagerOverrides />
           </ManagerRoute>
         }
       />

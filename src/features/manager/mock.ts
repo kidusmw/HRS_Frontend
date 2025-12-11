@@ -42,6 +42,17 @@ export interface ManagerOperation {
   timestamp: string;
   details: string;
   status: 'completed' | 'pending' | 'flagged';
+  type?: 'override' | 'standard';
+}
+
+export interface ManagerEmployee {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  shift: 'morning' | 'evening' | 'night';
+  underSupervision: boolean;
+  status: 'active' | 'inactive';
 }
 
 export const managerBookings: ManagerBooking[] = [
@@ -184,6 +195,7 @@ export const managerOperations: ManagerOperation[] = [
     timestamp: '2025-12-11T07:50:00Z',
     details: 'Early check-in approved; deposit collected.',
     status: 'completed',
+    type: 'standard',
   },
   {
     id: 9002,
@@ -193,6 +205,7 @@ export const managerOperations: ManagerOperation[] = [
     timestamp: '2025-12-11T09:40:00Z',
     details: 'Requested upgrade to Deluxe King; awaiting manager confirmation.',
     status: 'pending',
+    type: 'standard',
   },
   {
     id: 9003,
@@ -202,6 +215,7 @@ export const managerOperations: ManagerOperation[] = [
     timestamp: '2025-12-10T12:10:00Z',
     details: 'Cancelled by guest within policy window; no fee applied.',
     status: 'completed',
+    type: 'standard',
   },
   {
     id: 9004,
@@ -211,6 +225,17 @@ export const managerOperations: ManagerOperation[] = [
     timestamp: '2025-12-11T10:05:00Z',
     details: 'Manual override to hold Suite despite OTA mismatch.',
     status: 'flagged',
+    type: 'override',
+  },
+  {
+    id: 9005,
+    receptionistName: 'Leo V.',
+    action: 'Override reservation',
+    bookingId: 106,
+    timestamp: '2025-12-11T11:25:00Z',
+    details: 'Override to honor VIP late arrival after cutoff.',
+    status: 'completed',
+    type: 'override',
   },
 ];
 
@@ -232,4 +257,43 @@ export function summarizeBookings(bookings: ManagerBooking[]) {
 
   return { total, byStatus };
 }
+
+export const managerEmployees: ManagerEmployee[] = [
+  {
+    id: 201,
+    name: 'Rosa Peterson',
+    email: 'rosa.peterson@example.com',
+    phone: '+1-555-1101',
+    shift: 'morning',
+    underSupervision: true,
+    status: 'active',
+  },
+  {
+    id: 202,
+    name: 'Leo Vasquez',
+    email: 'leo.vasquez@example.com',
+    phone: '+1-555-1102',
+    shift: 'evening',
+    underSupervision: true,
+    status: 'active',
+  },
+  {
+    id: 203,
+    name: 'Nora Lin',
+    email: 'nora.lin@example.com',
+    phone: '+1-555-1103',
+    shift: 'night',
+    underSupervision: false,
+    status: 'active',
+  },
+  {
+    id: 204,
+    name: 'Brandon Kim',
+    email: 'brandon.kim@example.com',
+    phone: '+1-555-1104',
+    shift: 'morning',
+    underSupervision: false,
+    status: 'inactive',
+  },
+];
 

@@ -5,8 +5,8 @@ import {
   FileText,
   LayoutDashboard,
   ShieldCheck,
-  UserCog,
   CalendarRange,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,8 +16,8 @@ const navItems = [
   { title: 'Reports', href: '/manager/reports', icon: FileText },
   { title: 'Occupancy & Alerts', href: '/manager/occupancy', icon: Bell },
   { title: 'Operations', href: '/manager/operations', icon: Activity },
-  { title: 'Profile', href: '/manager/profile', icon: UserCog },
-  { title: 'Overrides', href: '/manager/operations#override', icon: ShieldCheck },
+  { title: 'Employees', href: '/manager/employees', icon: Users },
+  { title: 'Overrides', href: '/manager/overrides', icon: ShieldCheck },
 ];
 
 export function ManagerSidebar() {

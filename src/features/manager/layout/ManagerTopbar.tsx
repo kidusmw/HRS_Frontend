@@ -12,6 +12,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@/app/store';
 import { logoutUserThunk } from '@/features/auth/authSlice';
 import { useNavigate } from 'react-router-dom';
+import { NotificationBell } from '@/features/admin/components/NotificationBell';
 
 export function ManagerTopbar() {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ export function ManagerTopbar() {
   return (
     <div className="flex h-16 items-center justify-end border-b bg-background px-6">
       <div className="flex items-center gap-4">
+        <NotificationBell />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full">

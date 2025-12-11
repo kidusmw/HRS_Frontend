@@ -15,7 +15,6 @@ export function Operations() {
   const [overrideNote, setOverrideNote] = useState('');
 
   const recentOps = useMemo(() => managerOperations.slice(0, 6), []);
-
   const submitOverride = (e: React.FormEvent) => {
     e.preventDefault();
     if (!overrideBookingId) {
@@ -119,6 +118,7 @@ export function Operations() {
           </CardContent>
         </Card>
       </div>
+
     </div>
   );
 }
