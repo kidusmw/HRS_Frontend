@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
-import { Activity, ShieldCheck, UserCheck } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Activity, ShieldCheck, UserCheck, Search } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { managerOperations } from '@/features/manager/mock';
 import { toast } from 'sonner';
 
@@ -13,8 +14,34 @@ export function Operations() {
   const [overrideBookingId, setOverrideBookingId] = useState('');
   const [overrideStatus, setOverrideStatus] = useState('confirmed');
   const [overrideNote, setOverrideNote] = useState('');
+  const [activityPage, setActivityPage] = useState(1);
+  const [activitySearch, setActivitySearch] = useState('');
 
-  const recentOps = useMemo(() => managerOperations.slice(0, 6), []);
+  const ACTIVITY_PAGE_SIZE = 6;
+
+  const recentOps = useMemo(() => managerOperations, []);
+
+  const activityTotalPages = Math.max(
+    1,
+    Math.ceil(
+      recentOps.filter((op) => {
+        if (!activitySearch.trim()) return true;
+        return String(op.bookingId).includes(activitySearch.trim());
+      }).length / ACTIVITY_PAGE_SIZE
+    )
+  );
+  const activityPageData = useMemo(() => {
+    const filtered = recentOps.filter((op) => {
+      if (!activitySearch.trim()) return true;
+      return String(op.bookingId).includes(activitySearch.trim());
+    });
+    const start = (activityPage - 1) * ACTIVITY_PAGE_SIZE;
+    return filtered.slice(start, start + ACTIVITY_PAGE_SIZE);
+  }, [recentOps, activityPage, activitySearch]);
+
+  useEffect(() => {
+    setActivityPage(1);
+  }, [activitySearch]);
   const submitOverride = (e: React.FormEvent) => {
     e.preventDefault();
     if (!overrideBookingId) {
@@ -36,15 +63,51 @@ export function Operations() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-muted-foreground" />
-              Receptionist activity
-            </CardTitle>
-            <CardDescription>Recent operational actions</CardDescription>
+          <CardHeader className="space-y-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <UserCheck className="h-4 w-4 text-muted-foreground" />
+                Receptionist activity
+              </CardTitle>
+              <CardDescription>Recent operational actions</CardDescription>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative w-full sm:w-64">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search booking ID"
+                  value={activitySearch}
+                  onChange={(e) => setActivitySearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+                <span>
+                  Page {activityPage} of {activityTotalPages}
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                    disabled={activityPage === 1}
+                  >
+                    Prev
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActivityPage((p) => Math.min(activityTotalPages, p + 1))}
+                    disabled={activityPage === activityTotalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentOps.map((op) => (
+            {activityPageData.map((op) => (
               <div
                 key={op.id}
                 className="flex items-start justify-between rounded-lg border p-3 text-sm"
@@ -94,12 +157,18 @@ export function Operations() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">New status</Label>
-                <Input
-                  id="status"
-                  placeholder="confirmed / pending / checked_in"
-                  value={overrideStatus}
-                  onChange={(e) => setOverrideStatus(e.target.value)}
-                />
+                <Select value={overrideStatus} onValueChange={setOverrideStatus}>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="confirmed">Confirmed</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="checked_in">Checked in</SelectItem>
+                    <SelectItem value="checked_out">Checked out</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="note">Note</Label>

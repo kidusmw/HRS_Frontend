@@ -12,6 +12,29 @@ import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 
+const attendanceStatusStyles: Record<'present' | 'absent' | 'late' | 'on_leave', string> = {
+  present: 'bg-green-100 text-green-800',
+  absent: 'bg-red-100 text-red-800',
+  late: 'bg-amber-100 text-amber-800',
+  on_leave: 'bg-blue-100 text-blue-800',
+};
+
+const employeeStatusStyles: Record<'active' | 'inactive', string> = {
+  active: 'bg-emerald-100 text-emerald-800',
+  inactive: 'bg-slate-200 text-slate-700',
+};
+
+const supervisionStyles = {
+  under: 'bg-blue-100 text-blue-800',
+  other: 'bg-amber-100 text-amber-800',
+};
+
+const shiftStyles: Record<'morning' | 'evening' | 'night', string> = {
+  morning: 'bg-yellow-100 text-yellow-800',
+  evening: 'bg-purple-100 text-purple-800',
+  night: 'bg-indigo-100 text-indigo-800',
+};
+
 export function Employees() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date('2025-12-11'));
   const [onlySupervised, setOnlySupervised] = useState(true);
@@ -152,7 +175,10 @@ export function Employees() {
                   <div className="flex items-center gap-2">
                     <Activity className="h-4 w-4 text-muted-foreground" />
                     <span className="font-semibold">{emp.name}</span>
-                    <Badge variant={emp.status === 'active' ? 'secondary' : 'outline'}>
+                    <Badge
+                      variant="secondary"
+                      className={cn('capitalize', employeeStatusStyles[emp.status])}
+                    >
                       {emp.status}
                     </Badge>
                   </div>
@@ -160,10 +186,8 @@ export function Employees() {
                   {att.note && <div className="text-xs text-muted-foreground">{att.note}</div>}
                 </div>
                 <Badge
-                  variant={
-                    att.status === 'absent' || att.status === 'on_leave' ? 'outline' : 'secondary'
-                  }
-                  className="capitalize"
+                  variant="secondary"
+                  className={cn('capitalize', attendanceStatusStyles[att.status])}
                 >
                   {att.status.replace('_', ' ')}
                 </Badge>
@@ -246,7 +270,10 @@ export function Employees() {
                 <CardContent className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Shift</span>
-                    <Badge variant="outline" className="capitalize">
+                    <Badge
+                      variant="secondary"
+                      className={cn('capitalize', shiftStyles[emp.shift])}
+                    >
                       {emp.shift}
                     </Badge>
                   </div>
@@ -257,9 +284,11 @@ export function Employees() {
                   <div className="flex items-center justify-between">
                     <span className="text-muted-foreground">Supervision</span>
                   {emp.underSupervision ? (
-                    <Badge variant="default">Under you</Badge>
+                    <Badge variant="secondary" className={supervisionStyles.under}>
+                      Under you
+                    </Badge>
                   ) : (
-                    <Badge variant="outline">
+                    <Badge variant="secondary" className={supervisionStyles.other}>
                       {emp.managerName || 'N/A'}
                     </Badge>
                   )}
