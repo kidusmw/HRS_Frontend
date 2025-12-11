@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,7 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import type { NotificationItem } from '@/types/admin';
-import { getHotelNotifications } from '../mock';
+import { getAdminNotifications, markAdminNotificationRead } from '../api/adminApi';
 
 function getNotificationBadgeVariant(type: string) {
   switch (type) {
@@ -36,21 +34,16 @@ function getNotificationBadgeVariant(type: string) {
 
 export function NotificationBell() {
   const navigate = useNavigate();
-  const user = useSelector((state: RootState) => state.auth.user);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
-
-  const hotelId = user?.hotelId ?? 1;
 
   // Fetch notifications
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        const data = getHotelNotifications(hotelId, 10);
-        setNotifications(data);
+        const response = await getAdminNotifications({ limit: 10 });
+        setNotifications(response.data || []);
       } catch (error) {
         console.error('Failed to load notifications:', error);
       } finally {
@@ -64,22 +57,22 @@ export function NotificationBell() {
     const interval = setInterval(fetchNotifications, 30000);
 
     return () => clearInterval(interval);
-  }, [hotelId]);
+  }, []);
 
   // Refresh when dropdown opens
   useEffect(() => {
     if (isOpen) {
       const fetchNotifications = async () => {
         try {
-          const data = getHotelNotifications(hotelId, 10);
-          setNotifications(data);
+          const response = await getAdminNotifications({ limit: 10 });
+          setNotifications(response.data || []);
         } catch (error) {
           console.error('Failed to load notifications:', error);
         }
       };
       fetchNotifications();
     }
-  }, [isOpen, hotelId]);
+  }, [isOpen]);
 
   // Filter to only show unread notifications
   const unreadNotifications = notifications.filter((n) => n.status === 'unread');
@@ -119,10 +112,14 @@ export function NotificationBell() {
                   className="flex flex-col items-start gap-1 py-3 cursor-pointer"
                   onSelect={(e) => {
                     e.preventDefault();
-                    // Remove notification after clicking
-                    setNotifications((prev) =>
-                      prev.filter((n) => n.id !== notification.id)
-                    );
+                    if (notification.status === 'unread') {
+                      markAdminNotificationRead(notification.id).catch((err) =>
+                        console.error('Failed to mark notification as read:', err)
+                      );
+                      setNotifications((prev) =>
+                        prev.filter((n) => n.id !== notification.id)
+                      );
+                    }
                   }}
                 >
                   <div className="flex w-full items-center justify-between">

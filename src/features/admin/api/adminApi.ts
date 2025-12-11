@@ -9,6 +9,7 @@ import type {
   BackupItem,
   HotelImage,
   RoomImage,
+  NotificationItem,
 } from '@/types/admin';
 
 const BASE_URL = '/admin';
@@ -563,6 +564,19 @@ export const updateRoomImage = async (
 
 export const deleteRoomImage = async (id: number): Promise<void> => {
   await api.delete(`${BASE_URL}/room-images/${id}`);
+};
+
+/*
+ * Notifications (admin)
+ */
+export const getAdminNotifications = async (params?: { limit?: number }): Promise<{ data: NotificationItem[] }> => {
+  const response = await api.get(`${BASE_URL}/notifications`, { params });
+  return response.data;
+};
+
+export const markAdminNotificationRead = async (id: number): Promise<{ message: string }> => {
+  const response = await api.patch(`${BASE_URL}/notifications/${id}/read`);
+  return response.data;
 };
 
 
