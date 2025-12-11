@@ -53,6 +53,7 @@ export interface ManagerEmployee {
   shift: 'morning' | 'evening' | 'night';
   underSupervision: boolean;
   status: 'active' | 'inactive';
+  managerName?: string;
 }
 
 export interface ManagerAttendance {
@@ -275,6 +276,7 @@ export const managerEmployees: ManagerEmployee[] = [
     shift: 'morning',
     underSupervision: true,
     status: 'active',
+    managerName: 'You',
   },
   {
     id: 202,
@@ -284,6 +286,7 @@ export const managerEmployees: ManagerEmployee[] = [
     shift: 'evening',
     underSupervision: true,
     status: 'active',
+    managerName: 'You',
   },
   {
     id: 203,
@@ -293,6 +296,7 @@ export const managerEmployees: ManagerEmployee[] = [
     shift: 'night',
     underSupervision: false,
     status: 'active',
+    managerName: 'Alice Morgan',
   },
   {
     id: 204,
@@ -302,6 +306,7 @@ export const managerEmployees: ManagerEmployee[] = [
     shift: 'morning',
     underSupervision: false,
     status: 'inactive',
+    managerName: 'John Carter',
   },
 ];
 
