@@ -67,7 +67,7 @@ export function Dashboard() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   // Get hotel ID from user (fallback to mock if not available)
-  const hotelId = user?.hotel_id || 1;
+  const hotelId = user?.hotelId ?? 1;
 
   useEffect(() => {
     const loadData = async () => {

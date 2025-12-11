@@ -41,7 +41,7 @@ export function NotificationBell() {
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
 
-  const hotelId = user?.hotel_id || 1;
+  const hotelId = user?.hotelId ?? 1;
 
   // Fetch notifications
   useEffect(() => {

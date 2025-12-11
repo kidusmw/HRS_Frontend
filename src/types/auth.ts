@@ -5,10 +5,15 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  hotel_id?: number | null;
-  email_verified_at?: string | null;
-  created_at?: string;
-  updated_at?: string;
+  hotelId?: number | null;
+  hotelName?: string | null;
+  emailVerifiedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  phoneNumber?: string | null;
+  avatarUrl?: string | null;
+  isActive?: boolean;
+  lastActiveAt?: string | null;
 }
 
 export interface AuthState {
