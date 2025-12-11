@@ -47,7 +47,7 @@ const DashboardPage = () => {
               <p className="text-sm text-gray-500">
                 Email: {user?.email}
               </p>
-              {user?.email_verified_at && (
+              {user?.emailVerifiedAt && (
                 <p className="text-sm text-green-600 mt-2">
                   ✓ Email verified
                 </p>

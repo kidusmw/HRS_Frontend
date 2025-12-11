@@ -82,7 +82,7 @@ export function Profile() {
     },
   });
 
-  const resolvedAvatar = avatarPreview || (user as any)?.avatarUrl || (user as any)?.avatar_url || null;
+  const resolvedAvatar = avatarPreview || user?.avatarUrl || null;
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -95,7 +95,7 @@ export function Profile() {
           email: resp.data.email,
           avatar: undefined,
         });
-        setAvatarPreview(resp.data.avatarUrl || (resp.data as any)?.avatar_url || null);
+        setAvatarPreview(resp.data.avatarUrl || null);
         setRemoveAvatar(false);
       } catch (error: any) {
         console.error('Failed to load profile:', error);
@@ -162,7 +162,7 @@ export function Profile() {
         email: resp.data.email,
         avatar: undefined,
       });
-      setAvatarPreview(resp.data.avatarUrl || (resp.data as any)?.avatar_url || null);
+      setAvatarPreview(resp.data.avatarUrl || null);
       setRemoveAvatar(false);
       toast.success('Profile updated successfully');
     } catch (error) {
@@ -256,12 +256,12 @@ export function Profile() {
                 <span>{user.email}</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
-                {user.email_verified_at ? (
+                {user.emailVerifiedAt ? (
                   <>
                     <CheckCircle className="h-4 w-4 text-green-500" />
                     <span>Email verified</span>
                     <span className="text-xs">
-                      {format(new Date(user.email_verified_at), 'PP')}
+                      {format(new Date(user.emailVerifiedAt), 'PP')}
                     </span>
                   </>
                 ) : (
@@ -283,8 +283,8 @@ export function Profile() {
                 <span>Member since</span>
               </div>
               <p className="font-medium">
-                {user.created_at
-                  ? format(new Date(user.created_at), 'PP')
+                {user.createdAt
+                  ? format(new Date(user.createdAt), 'PP')
                   : 'N/A'}
               </p>
             </div>

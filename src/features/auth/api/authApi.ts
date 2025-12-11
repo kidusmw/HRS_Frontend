@@ -1,19 +1,23 @@
 import { api } from '@/lib/axios';
 import type { LoginCredentials, RegisterData, AuthResponse, User } from '@/types/auth';
+import { mapUserDto } from '@/features/auth/mappers/userMapper';
 
 export const registerUser = async (data: RegisterData): Promise<AuthResponse> => {
   const response = await api.post('/register', data);
-  return response.data;
+  const payload = response.data;
+  return payload.user ? { ...payload, user: mapUserDto(payload.user) } : payload;
 };
 
 export const verifyEmail = async (url: string): Promise<AuthResponse> => {
   const response = await api.get(url);
-  return response.data;
+  const payload = response.data;
+  return payload.user ? { ...payload, user: mapUserDto(payload.user) } : payload;
 };
 
 export const loginUser = async (data: LoginCredentials): Promise<AuthResponse> => {
   const response = await api.post('/login', data);
-  return response.data;
+  const payload = response.data;
+  return { ...payload, user: mapUserDto(payload.user) };
 };
 
 export const logoutUser = async (): Promise<void> => {
@@ -54,7 +58,8 @@ export interface UpdateProfilePayload {
 
 export const getProfile = async (): Promise<{ data: User }> => {
   const response = await api.get('/profile');
-  return response.data;
+  const raw = (response.data as any).data ?? response.data;
+  return { data: mapUserDto(raw) };
 };
 
 export const updateProfile = async (payload: UpdateProfilePayload): Promise<{ data: User }> => {
@@ -76,7 +81,8 @@ export const updateProfile = async (payload: UpdateProfilePayload): Promise<{ da
   }
 
   const response = await api.put('/profile', formData);
-  return response.data;
+  const raw = (response.data as any).data ?? response.data;
+  return { data: mapUserDto(raw) };
 };
 
 export const updatePassword = async (payload: {

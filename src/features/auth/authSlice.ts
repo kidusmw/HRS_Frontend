@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { registerUser, verifyEmail, loginUser, logoutUser } from '@/features/auth/api/authApi';
+import { mapUserDto } from '@/features/auth/mappers/userMapper';
 import type { AuthState, LoginCredentials, RegisterData } from '@/types/auth';
 
 const initialState: AuthState = {
@@ -68,7 +69,7 @@ export const hydrateFromStorage = createAsyncThunk(
     const userStr = localStorage.getItem('auth_user');
     
     if (token && userStr) {
-      const user = JSON.parse(userStr);
+      const user = mapUserDto(JSON.parse(userStr));
       return { token, user };
     }
     
@@ -151,7 +152,7 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.access_token || null;
         state.isAuthenticated = true;
-        state.isVerified = !!action.payload.user.email_verified_at;
+        state.isVerified = !!action.payload.user.emailVerifiedAt;
         state.error = null;
         
         // Persist to localStorage
@@ -192,7 +193,7 @@ const authSlice = createSlice({
           state.token = action.payload.token;
           state.user = action.payload.user;
           state.isAuthenticated = true;
-          state.isVerified = !!action.payload.user.email_verified_at;
+          state.isVerified = !!action.payload.user.emailVerifiedAt;
         }
       });
   },
