@@ -49,8 +49,8 @@ export const resetPassword = async (data: {
  */
 
 export interface UpdateProfilePayload {
-  name: string;
-  email: string;
+  name?: string;
+  email?: string;
   phoneNumber?: string | null;
   avatar?: File | null;
   removeAvatar?: boolean;
@@ -64,23 +64,23 @@ export const getProfile = async (): Promise<{ data: User }> => {
 
 export const updateProfile = async (payload: UpdateProfilePayload): Promise<{ data: User }> => {
   const formData = new FormData();
-  formData.append('name', payload.name);
-  formData.append('email', payload.email);
+  if (payload.name !== undefined) formData.append('name', payload.name);
+  if (payload.email !== undefined) formData.append('email', payload.email);
   if (payload.phoneNumber !== undefined) {
-    if (payload.phoneNumber === null) {
-      formData.append('phoneNumber', '');
-    } else {
-      formData.append('phoneNumber', payload.phoneNumber);
-    }
+    formData.append('phoneNumber', payload.phoneNumber ?? '');
   }
-  if (payload.removeAvatar) {
-    formData.append('removeAvatar', '1');
-  }
-  if (payload.avatar) {
-    formData.append('avatar', payload.avatar);
+  if (payload.removeAvatar) formData.append('removeAvatar', '1');
+  if (payload.avatar instanceof File) formData.append('avatar', payload.avatar);
+  // Spoof PUT for multipart (PHP only parses files on POST)
+  formData.append('_method', 'PUT');
+
+  if (import.meta.env.DEV) {
+    // Debug: log outgoing form-data fields
+    // eslint-disable-next-line no-console
+    console.debug('updateProfile formData', Array.from(formData.entries()));
   }
 
-  const response = await api.put('/profile', formData);
+  const response = await api.post('/profile', formData);
   const raw = (response.data as any).data ?? response.data;
   return { data: mapUserDto(raw) };
 };

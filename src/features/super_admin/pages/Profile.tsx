@@ -167,6 +167,7 @@ export function Profile() {
       toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
+      console.error('Profile update error response:', (error as any)?.response?.data);
       const validation = (error as any)?.response?.data?.errors as Record<string, string[]> | undefined;
       const firstValidationError = validation ? Object.values(validation)?.[0]?.[0] : null;
       const message =

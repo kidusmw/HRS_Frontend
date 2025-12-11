@@ -26,6 +26,17 @@ export interface UserDto {
   updated_at?: string;
 }
 
+function normalizeAvatarUrl(url?: string | null): string | null {
+  if (!url) return null;
+  // If backend returns a relative path like /storage/..., prefix with API origin
+  if (url.startsWith('/')) {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+    const origin = apiBase.replace(/\/api\/?$/, '');
+    return `${origin}${url}`;
+  }
+  return url;
+}
+
 export function mapUserDto(user: UserDto): User {
   return {
     id: user.id,
@@ -34,7 +45,7 @@ export function mapUserDto(user: UserDto): User {
     role: (user.role === 'superadmin' ? 'super_admin' : user.role) as Role,
     hotelId: user.hotelId ?? user.hotel_id ?? null,
     hotelName: user.hotelName ?? user.hotel_name ?? null,
-    avatarUrl: user.avatarUrl ?? user.avatar_url ?? null,
+    avatarUrl: normalizeAvatarUrl(user.avatarUrl ?? user.avatar_url ?? null),
     phoneNumber: user.phoneNumber ?? user.phone_number ?? null,
     isActive: user.isActive ?? user.active,
     lastActiveAt: user.lastActiveAt ?? user.last_active_at ?? null,
