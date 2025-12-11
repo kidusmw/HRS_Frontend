@@ -55,6 +55,14 @@ export interface ManagerEmployee {
   status: 'active' | 'inactive';
 }
 
+export interface ManagerAttendance {
+  id: number;
+  employeeId: number;
+  date: string; // YYYY-MM-DD
+  status: 'present' | 'absent' | 'late' | 'on_leave';
+  note?: string;
+}
+
 export const managerBookings: ManagerBooking[] = [
   {
     id: 101,
@@ -294,6 +302,55 @@ export const managerEmployees: ManagerEmployee[] = [
     shift: 'morning',
     underSupervision: false,
     status: 'inactive',
+  },
+];
+
+export const managerAttendance: ManagerAttendance[] = [
+  {
+    id: 1,
+    employeeId: 201,
+    date: '2025-12-11',
+    status: 'present',
+    note: 'On time',
+  },
+  {
+    id: 2,
+    employeeId: 202,
+    date: '2025-12-11',
+    status: 'late',
+    note: 'Arrived 15 minutes late',
+  },
+  {
+    id: 3,
+    employeeId: 203,
+    date: '2025-12-11',
+    status: 'present',
+  },
+  {
+    id: 4,
+    employeeId: 204,
+    date: '2025-12-11',
+    status: 'absent',
+    note: 'Scheduled day off',
+  },
+  {
+    id: 5,
+    employeeId: 201,
+    date: '2025-12-10',
+    status: 'present',
+  },
+  {
+    id: 6,
+    employeeId: 202,
+    date: '2025-12-10',
+    status: 'present',
+  },
+  {
+    id: 7,
+    employeeId: 203,
+    date: '2025-12-10',
+    status: 'on_leave',
+    note: 'Approved leave',
   },
 ];
 
