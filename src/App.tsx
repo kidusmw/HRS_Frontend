@@ -8,6 +8,7 @@ import DashboardPage from './features/dashboard/pages/DashboardPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import { SuperAdminRoute } from './components/SuperAdminRoute'
 import { AdminRoute } from './components/AdminRoute'
+import { ManagerRoute } from './components/ManagerRoute'
 import NotFoundPage from './features/shared/NotFoundPage'
 import { Dashboard } from './features/super_admin/pages/Dashboard'
 import { Users } from './features/super_admin/pages/Users'
@@ -25,6 +26,12 @@ import { Logs as AdminLogs } from './features/admin/pages/Logs'
 import { Profile as AdminProfile } from './features/admin/pages/Profile'
 import { Backups as AdminBackups } from './features/admin/pages/Backups'
 import { Payments } from './features/admin/pages/Payments'
+import { Dashboard as ManagerDashboard } from './features/manager/pages/Dashboard'
+import { Bookings as ManagerBookings } from './features/manager/pages/Bookings'
+import { Reports as ManagerReports } from './features/manager/pages/Reports'
+import { Occupancy as ManagerOccupancy } from './features/manager/pages/Occupancy'
+import { Operations as ManagerOperations } from './features/manager/pages/Operations'
+import { Profile as ManagerProfile } from './features/manager/pages/Profile'
 
 function App() {
   return (
@@ -178,6 +185,59 @@ function App() {
           <AdminRoute>
             <Payments />
           </AdminRoute>
+        }
+      />
+      {/* Manager Routes */}
+      <Route
+        path="/manager"
+        element={<Navigate to="/manager/dashboard" replace />}
+      />
+      <Route
+        path="/manager/dashboard"
+        element={
+          <ManagerRoute>
+            <ManagerDashboard />
+          </ManagerRoute>
+        }
+      />
+      <Route
+        path="/manager/bookings"
+        element={
+          <ManagerRoute>
+            <ManagerBookings />
+          </ManagerRoute>
+        }
+      />
+      <Route
+        path="/manager/reports"
+        element={
+          <ManagerRoute>
+            <ManagerReports />
+          </ManagerRoute>
+        }
+      />
+      <Route
+        path="/manager/occupancy"
+        element={
+          <ManagerRoute>
+            <ManagerOccupancy />
+          </ManagerRoute>
+        }
+      />
+      <Route
+        path="/manager/operations"
+        element={
+          <ManagerRoute>
+            <ManagerOperations />
+          </ManagerRoute>
+        }
+      />
+      <Route
+        path="/manager/profile"
+        element={
+          <ManagerRoute>
+            <ManagerProfile />
+          </ManagerRoute>
         }
       />
       <Route path='*' element={<NotFoundPage />} />
