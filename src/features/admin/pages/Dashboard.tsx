@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/app/store';
 import { Percent, Bed, Calendar, CalendarCheck, DollarSign } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,10 +11,7 @@ import {
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { KpiCard } from '../components/KpiCard';
 import { NotificationsPanel } from '../components/NotificationsPanel';
-import {
-  getHotelNotifications,
-} from '../mock';
-import { getDashboardMetrics } from '../api/adminApi';
+import { getDashboardMetrics, getAdminNotifications } from '../api/adminApi';
 import type { NotificationItem } from '@/types/admin';
 import { toast } from 'sonner';
 
@@ -46,7 +41,6 @@ const revenueChartConfig = {
 } satisfies ChartConfig;
 
 export function Dashboard() {
-  const user = useSelector((state: RootState) => state.auth.user);
   const [isLoading, setIsLoading] = useState(true);
   const [kpis, setKpis] = useState<{
     occupancyPct: number;
@@ -66,9 +60,6 @@ export function Dashboard() {
   >([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
-  // Get hotel ID from user (fallback to mock if not available)
-  const hotelId = user?.hotelId ?? 1;
-
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -83,8 +74,8 @@ export function Dashboard() {
         setWeeklyOccupancy(metrics.weeklyOccupancy);
         setRevenueTrend(metrics.revenueTrends);
         
-        // Notifications still use mock for now (will be implemented later)
-        setNotifications(getHotelNotifications(hotelId, 10));
+        const notifResp = await getAdminNotifications({ limit: 10 });
+        setNotifications(notifResp.data || []);
       } catch (error: any) {
         console.error('Failed to load dashboard data:', error);
         const errorMessage =
@@ -101,14 +92,14 @@ export function Dashboard() {
         setBookingsTrend([]);
         setWeeklyOccupancy([]);
         setRevenueTrend([]);
-        setNotifications(getHotelNotifications(hotelId, 10));
+        setNotifications([]);
       } finally {
         setIsLoading(false);
       }
     };
 
     loadData();
-  }, [hotelId]);
+  }, []);
 
   if (isLoading) {
     return (

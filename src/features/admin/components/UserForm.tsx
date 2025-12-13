@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Form,
   FormControl,
@@ -25,6 +25,7 @@ import type { UserListItem } from '@/types/admin';
 import {
   createUser,
   updateUser,
+  getUsers,
 } from '../api/adminApi';
 import { toast } from 'sonner';
 
@@ -33,10 +34,22 @@ const userFormSchema = z.object({
   email: z.string().email('Invalid email address'),
   role: z.enum(['receptionist', 'manager']),
   phoneNumber: z.string().min(1, 'Phone number is required'),
+  supervisorId: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
   generatePassword: z.boolean(),
   isActive: z.boolean(),
-});
+}).refine(
+  (data) => {
+    if (data.role === 'receptionist') {
+      return !!data.supervisorId;
+    }
+    return true;
+  },
+  {
+    path: ['supervisorId'],
+    message: 'Supervisor is required for receptionists',
+  }
+);
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
@@ -50,6 +63,7 @@ const roles: Array<'receptionist' | 'manager'> = ['receptionist', 'manager'];
 
 export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const isEditing = !!user;
+  const [managers, setManagers] = useState<UserListItem[]>([]);
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -60,6 +74,9 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
         ? user.role
         : 'receptionist',
       phoneNumber: user?.phoneNumber || '',
+      supervisorId: user && user.role === 'receptionist' && (user as any).supervisor?.id
+        ? String((user as any).supervisor?.id)
+        : '',
       password: '',
       generatePassword: !isEditing,
       isActive: user?.isActive ?? true,
@@ -69,6 +86,17 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const generatePassword = form.watch('generatePassword');
 
   useEffect(() => {
+    const loadManagers = async () => {
+      try {
+        const resp = await getUsers({ role: 'manager', perPage: 100 });
+        setManagers(resp.data || []);
+      } catch (error: any) {
+        console.error('Failed to load managers:', error);
+        toast.error(error.response?.data?.message || error.message || 'Failed to load managers');
+      }
+    };
+    loadManagers();
+
     if (isEditing && user) {
       form.reset({
         name: user.name,
@@ -77,6 +105,9 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
           ? user.role
           : 'receptionist',
         phoneNumber: user.phoneNumber || '',
+        supervisorId: user.role === 'receptionist' && (user as any).supervisor?.id
+          ? String((user as any).supervisor?.id)
+          : '',
         password: '',
         generatePassword: false,
         isActive: user.isActive,
@@ -95,6 +126,11 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
           phoneNumber: values.phoneNumber,
           active: values.isActive,
         };
+        if (values.role === 'receptionist') {
+          updateData.supervisorId = values.supervisorId ? Number(values.supervisorId) : null;
+        } else {
+          updateData.supervisorId = null;
+        }
 
         // Only include password if it was provided and not auto-generated
         if (!values.generatePassword && values.password && values.password.length >= 8) {
@@ -112,6 +148,9 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
           phoneNumber: values.phoneNumber,
           active: values.isActive,
         };
+        if (values.role === 'receptionist') {
+          createData.supervisorId = values.supervisorId ? Number(values.supervisorId) : null;
+        }
 
         // Only include password if not auto-generated
         if (!values.generatePassword && values.password && values.password.length >= 8) {
@@ -216,6 +255,36 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
             </FormItem>
           )}
         />
+
+        {form.watch('role') === 'receptionist' && (
+          <FormField
+            control={form.control}
+            name="supervisorId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Supervisor (Manager)</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value || ''}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a manager" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {managers.map((mgr) => (
+                      <SelectItem key={mgr.id} value={String(mgr.id)}>
+                        {mgr.name} ({mgr.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Receptionists must be supervised by a manager.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         {!isEditing && (
           <FormField

@@ -21,6 +21,7 @@ export interface UserListItem {
   isActive: boolean;
   lastActiveAt?: string | null;
   phoneNumber?: string | null;
+  supervisor?: { id: number; name: string; email: string } | null;
 }
 
 export interface HotelListItem {
@@ -82,6 +83,7 @@ export interface CreateUserDto {
   hotelId?: number | null;
   phoneNumber?: string | null;
   password?: string | null; // Auto-generated if not provided
+  supervisorId?: number | null;
 }
 
 export interface UpdateUserDto {
@@ -90,6 +92,7 @@ export interface UpdateUserDto {
   role?: Role;
   hotelId?: number | null;
   phoneNumber?: string | null;
+  supervisorId?: number | null;
 }
 
 export interface CreateHotelDto {
