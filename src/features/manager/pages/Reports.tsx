@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, BarChart2, Download } from 'lucide-react';
+import { FileText, BarChart2, Download, FileDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getReports, type ReportRange } from '@/features/manager/api/managerApi';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
+import { downloadReportAsExcel } from '@/lib/reportToExcel';
 
 const predefinedReports = [
   { id: 'daily-occupancy', title: 'Daily Occupancy Report', description: 'Occupancy, ADR, RevPAR snapshot' },
@@ -42,6 +43,20 @@ export function Reports() {
     loadReport();
   };
 
+  const handleDownload = () => {
+    if (!reportData) {
+      toast.error('Please generate a report first');
+      return;
+    }
+    try {
+      downloadReportAsExcel(reportData, range);
+      toast.success('Report downloaded successfully');
+    } catch (error) {
+      console.error('Failed to download report:', error);
+      toast.error('Failed to download report');
+    }
+  };
+
   const rangeLabels: Record<ReportRange, string> = {
     today: 'Today',
     yesterday: 'Yesterday',
@@ -58,10 +73,18 @@ export function Reports() {
           <h1 className="text-3xl font-bold">Reports</h1>
           <p className="text-muted-foreground">Generate high-level manager reports</p>
         </div>
-        <Button onClick={handleGenerate} disabled={loading}>
-          <Download className="mr-2 h-4 w-4" />
-          {loading ? 'Loading...' : 'Generate'}
-        </Button>
+        <div className="flex gap-2">
+          {reportData && (
+            <Button onClick={handleDownload} variant="outline">
+              <FileDown className="mr-2 h-4 w-4" />
+              Download Report
+            </Button>
+          )}
+          <Button onClick={handleGenerate} disabled={loading}>
+            <Download className="mr-2 h-4 w-4" />
+            {loading ? 'Loading...' : 'Generate'}
+          </Button>
+        </div>
       </div>
 
       <Card>
