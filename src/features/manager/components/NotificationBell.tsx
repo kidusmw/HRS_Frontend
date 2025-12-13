@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bell, AlertTriangle } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -13,15 +13,21 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
-import { getAlerts } from '../api/managerApi';
+import { getNotifications, markNotificationRead } from '../api/managerApi';
 
-function getAlertBadgeVariant(severity: string) {
-  switch (severity) {
-    case 'critical':
-      return 'destructive';
-    case 'warning':
+function getNotificationBadgeVariant(type: string) {
+  switch (type) {
+    case 'reservation':
       return 'default';
-    case 'info':
+    case 'user':
+      return 'secondary';
+    case 'attendance':
+      return 'outline';
+    case 'alert':
+      return 'destructive';
+    case 'hotel':
+      return 'default';
+    case 'settings':
       return 'secondary';
     default:
       return 'default';
@@ -29,27 +35,27 @@ function getAlertBadgeVariant(severity: string) {
 }
 
 export function NotificationBell() {
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Fetch alerts
+  // Fetch notifications
   useEffect(() => {
-    const fetchAlerts = async () => {
+    const fetchNotifications = async () => {
       try {
-        const response = await getAlerts({ status: 'open', per_page: 10 });
-        setAlerts(response.data || []);
+        const response = await getNotifications({ limit: 10 });
+        setNotifications(response.data || []);
       } catch (error) {
-        console.error('Failed to load alerts:', error);
+        console.error('Failed to load notifications:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchAlerts();
+    fetchNotifications();
 
-    // Poll for new alerts every 30 seconds
-    const interval = setInterval(fetchAlerts, 30000);
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
 
     return () => clearInterval(interval);
   }, []);
@@ -57,36 +63,47 @@ export function NotificationBell() {
   // Refresh when dropdown opens
   useEffect(() => {
     if (isOpen) {
-      const fetchAlerts = async () => {
+      const fetchNotifications = async () => {
         try {
-          const response = await getAlerts({ status: 'open', per_page: 10 });
-          setAlerts(response.data || []);
+          const response = await getNotifications({ limit: 10 });
+          setNotifications(response.data || []);
         } catch (error) {
-          console.error('Failed to load alerts:', error);
+          console.error('Failed to load notifications:', error);
         }
       };
-      fetchAlerts();
+      fetchNotifications();
     }
   }, [isOpen]);
 
-  // Filter to only show open alerts
-  const openAlerts = alerts.filter((a) => a.status === 'open');
-  const openCount = openAlerts.length;
+  // Filter to only show unread notifications
+  const unreadNotifications = notifications.filter((n) => n.status === 'unread');
+  const unreadCount = unreadNotifications.length;
+
+  const handleMarkAsRead = async (notificationId: number) => {
+    try {
+      await markNotificationRead(notificationId);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, status: 'read' } : n))
+      );
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-4 w-4" />
-          {openCount > 0 && (
+          {unreadCount > 0 && (
             <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
-              {openCount}
+              {unreadCount}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel>Alerts & Notifications</DropdownMenuLabel>
+        <DropdownMenuLabel>Notifications</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <ScrollArea className="h-[400px]">
           {isLoading ? (
@@ -95,40 +112,42 @@ export function NotificationBell() {
                 <Skeleton key={i} className="h-20 w-full" />
               ))}
             </div>
-          ) : openAlerts.length === 0 ? (
+          ) : unreadNotifications.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              No alerts
+              No new notifications
             </div>
           ) : (
             <div className="space-y-1 p-2">
-              {openAlerts.map((alert) => (
+              {unreadNotifications.map((notification) => (
                 <DropdownMenuItem
-                  key={alert.id}
+                  key={notification.id}
                   className="flex flex-col items-start gap-1 py-3 cursor-pointer"
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    if (notification.status === 'unread') {
+                      handleMarkAsRead(notification.id);
+                    }
+                  }}
                 >
                   <div className="flex w-full items-center justify-between">
                     <Badge
-                      variant={getAlertBadgeVariant(alert.severity)}
+                      variant={getNotificationBadgeVariant(notification.type)}
                       className="text-xs"
                     >
-                      {alert.severity}
+                      {notification.type}
                     </Badge>
-                    <AlertTriangle
-                      className={`h-4 w-4 ${
-                        alert.severity === 'critical'
-                          ? 'text-red-500'
-                          : alert.severity === 'warning'
-                            ? 'text-amber-500'
-                            : 'text-blue-500'
-                      }`}
-                    />
+                    {notification.status === 'unread' && (
+                      <div className="h-2 w-2 rounded-full bg-primary" />
+                    )}
                   </div>
-                  <p className="text-sm">{alert.message}</p>
-                  <p className="text-xs text-muted-foreground capitalize">
-                    {alert.type}
-                  </p>
+                  <p className="text-sm">{notification.message}</p>
+                  {notification.hotelName && (
+                    <p className="text-xs text-muted-foreground">
+                      {notification.hotelName}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(alert.createdAt), {
+                    {formatDistanceToNow(new Date(notification.timestamp), {
                       addSuffix: true,
                     })}
                   </p>
@@ -144,7 +163,7 @@ export function NotificationBell() {
             window.location.href = '/manager/occupancy';
           }}
         >
-          View all alerts
+          View all notifications
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

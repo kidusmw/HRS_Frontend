@@ -311,3 +311,34 @@ export const getOccupancy = async (): Promise<{ data: ManagerOccupancy[] }> => {
   return response.data;
 };
 
+/*
+ * Notifications
+ */
+export interface ManagerNotification {
+  id: number;
+  message: string;
+  type: 'reservation' | 'user' | 'attendance' | 'alert' | 'hotel' | 'settings' | 'system';
+  status: 'read' | 'unread';
+  timestamp: string;
+  hotelId?: number;
+  hotelName?: string;
+}
+
+export interface GetNotificationsParams {
+  limit?: number;
+}
+
+export interface NotificationsResponse {
+  data: ManagerNotification[];
+}
+
+export const getNotifications = async (params?: GetNotificationsParams): Promise<NotificationsResponse> => {
+  const response = await api.get(`${BASE_URL}/notifications`, { params });
+  return response.data;
+};
+
+export const markNotificationRead = async (id: number): Promise<{ message: string }> => {
+  const response = await api.patch(`${BASE_URL}/notifications/${id}/read`);
+  return response.data;
+};
+
