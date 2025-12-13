@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Users, Filter, CalendarDays, Activity, Search } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { managerEmployees, managerAttendance } from '@/features/manager/mock';
+import { getEmployees, getAttendance } from '@/features/manager/api/managerApi';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -36,66 +38,83 @@ const shiftStyles: Record<'morning' | 'evening' | 'night', string> = {
 };
 
 export function Employees() {
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date('2025-12-11'));
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [onlySupervised, setOnlySupervised] = useState(true);
   const [search, setSearch] = useState('');
   const [attendanceSearch, setAttendanceSearch] = useState('');
   const [employeePage, setEmployeePage] = useState(1);
   const [attendancePage, setAttendancePage] = useState(1);
+  const [loadingEmployees, setLoadingEmployees] = useState(true);
+  const [loadingAttendance, setLoadingAttendance] = useState(false);
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [employeesMeta, setEmployeesMeta] = useState<any>(null);
+  const [attendance, setAttendance] = useState<any[]>([]);
+  const [attendanceMeta, setAttendanceMeta] = useState<any>(null);
 
-  const EMP_PAGE_SIZE = 6;
-  const ATT_PAGE_SIZE = 5;
-
-  const filteredEmployees = useMemo(() => {
-    const pool = onlySupervised
-      ? managerEmployees.filter((emp) => emp.underSupervision)
-      : managerEmployees;
-    if (!search.trim()) return pool;
-    const term = search.toLowerCase();
-    return pool.filter((emp) => {
-      const managerName = emp.managerName || '';
-      return (
-        emp.name.toLowerCase().includes(term) ||
-        emp.email.toLowerCase().includes(term) ||
-        (emp.phone || '').toLowerCase().includes(term) ||
-        managerName.toLowerCase().includes(term)
-      );
-    });
-  }, [onlySupervised, search]);
-
-  const employeeTotalPages = Math.max(1, Math.ceil(filteredEmployees.length / EMP_PAGE_SIZE));
-  const employeesPageData = useMemo(() => {
-    const start = (employeePage - 1) * EMP_PAGE_SIZE;
-    return filteredEmployees.slice(start, start + EMP_PAGE_SIZE);
-  }, [filteredEmployees, employeePage]);
+  useEffect(() => {
+    const loadEmployees = async () => {
+      try {
+        setLoadingEmployees(true);
+        const params: any = {
+          page: employeePage,
+          per_page: 6,
+        };
+        if (search) params.search = search;
+        const response = await getEmployees(params);
+        let data = response.data || [];
+        if (onlySupervised) {
+          data = data.filter((emp: any) => emp.underSupervision);
+        }
+        setEmployees(data);
+        setEmployeesMeta(response.meta);
+      } catch (error: any) {
+        console.error('Failed to load employees:', error);
+        toast.error(error.response?.data?.message || 'Failed to load employees');
+      } finally {
+        setLoadingEmployees(false);
+      }
+    };
+    loadEmployees();
+  }, [search, employeePage, onlySupervised]);
 
   useEffect(() => {
     setEmployeePage(1);
   }, [onlySupervised, search]);
 
-  const attendanceForDate = useMemo(() => {
-    const dateStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '';
-    const term = attendanceSearch.trim().toLowerCase();
-
-    return managerAttendance.filter((a) => {
-      if (a.date !== dateStr) return false;
-      const emp = managerEmployees.find((e) => e.id === a.employeeId && e.underSupervision);
-      if (!emp) return false;
-      if (!term) return true;
-      return (
-        emp.name.toLowerCase().includes(term) ||
-        emp.email.toLowerCase().includes(term) ||
-        (emp.phone || '').toLowerCase().includes(term) ||
-        (emp.managerName || '').toLowerCase().includes(term)
-      );
-    });
-  }, [selectedDate, attendanceSearch]);
-
-  const attendanceTotalPages = Math.max(1, Math.ceil(attendanceForDate.length / ATT_PAGE_SIZE));
-  const attendancePageData = useMemo(() => {
-    const start = (attendancePage - 1) * ATT_PAGE_SIZE;
-    return attendanceForDate.slice(start, start + ATT_PAGE_SIZE);
-  }, [attendanceForDate, attendancePage]);
+  useEffect(() => {
+    const loadAttendance = async () => {
+      if (!selectedDate) return;
+      try {
+        setLoadingAttendance(true);
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const params: any = {
+          date: dateStr,
+          page: attendancePage,
+          per_page: 5,
+        };
+        if (attendanceSearch) {
+          // Note: Backend may not support search in attendance, filter client-side for now
+        }
+        const response = await getAttendance(params);
+        let data = response.data || [];
+        if (attendanceSearch) {
+          const term = attendanceSearch.toLowerCase();
+          data = data.filter((att: any) => {
+            // We'd need employee data to search, so this is a simplified filter
+            return att.note?.toLowerCase().includes(term);
+          });
+        }
+        setAttendance(data);
+        setAttendanceMeta(response.meta);
+      } catch (error: any) {
+        console.error('Failed to load attendance:', error);
+        toast.error(error.response?.data?.message || 'Failed to load attendance');
+      } finally {
+        setLoadingAttendance(false);
+      }
+    };
+    loadAttendance();
+  }, [selectedDate, attendancePage, attendanceSearch]);
 
   useEffect(() => {
     setAttendancePage(1);
@@ -113,7 +132,7 @@ export function Employees() {
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            {filteredEmployees.length} shown / {managerEmployees.length} total
+            {employees.length} shown / {employeesMeta?.total || 0} total
           </Badge>
         </div>
       </div>
@@ -163,8 +182,15 @@ export function Employees() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          {attendancePageData.map((att) => {
-            const emp = managerEmployees.find((e) => e.id === att.employeeId);
+          {loadingAttendance ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : (
+            attendance.map((att) => {
+              const emp = employees.find((e: any) => e.id === att.employeeId);
             if (!emp) return null;
             return (
               <div
@@ -193,15 +219,16 @@ export function Employees() {
                 </Badge>
               </div>
             );
-          })}
-          {attendanceForDate.length === 0 && (
+            })
+          )}
+          {!loadingAttendance && attendance.length === 0 && (
             <div className="text-sm text-muted-foreground">No attendance records for this date.</div>
           )}
 
-          {attendanceForDate.length > 0 && (
+          {!loadingAttendance && attendanceMeta && attendanceMeta.last_page > 1 && (
             <div className="flex items-center justify-between pt-2">
               <span className="text-xs text-muted-foreground">
-                Page {attendancePage} of {attendanceTotalPages}
+                Page {attendanceMeta.current_page} of {attendanceMeta.last_page}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -215,8 +242,8 @@ export function Employees() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setAttendancePage((p) => Math.min(attendanceTotalPages, p + 1))}
-                  disabled={attendancePage === attendanceTotalPages}
+                  onClick={() => setAttendancePage((p) => Math.min(attendanceMeta.last_page, p + 1))}
+                  disabled={attendancePage === attendanceMeta.last_page}
                 >
                   Next
                 </Button>
@@ -256,7 +283,12 @@ export function Employees() {
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {employeesPageData.map((emp) => (
+            {loadingEmployees ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-32" />
+              ))
+            ) : (
+              employees.map((emp) => (
               <Card key={emp.id}>
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
@@ -295,16 +327,17 @@ export function Employees() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-            {filteredEmployees.length === 0 && (
-              <div className="text-sm text-muted-foreground">No employees match this view.</div>
+              ))
+            )}
+            {!loadingEmployees && employees.length === 0 && (
+              <div className="text-sm text-muted-foreground col-span-full">No employees match this view.</div>
             )}
           </div>
 
-          {filteredEmployees.length > 0 && (
+          {!loadingEmployees && employeesMeta && employeesMeta.last_page > 1 && (
             <div className="flex items-center justify-between pt-2">
               <span className="text-xs text-muted-foreground">
-                Page {employeePage} of {employeeTotalPages}
+                Page {employeesMeta.current_page} of {employeesMeta.last_page}
               </span>
               <div className="flex gap-2">
                 <Button
@@ -318,8 +351,8 @@ export function Employees() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setEmployeePage((p) => Math.min(employeeTotalPages, p + 1))}
-                  disabled={employeePage === employeeTotalPages}
+                  onClick={() => setEmployeePage((p) => Math.min(employeesMeta.last_page, p + 1))}
+                  disabled={employeePage === employeesMeta.last_page}
                 >
                   Next
                 </Button>

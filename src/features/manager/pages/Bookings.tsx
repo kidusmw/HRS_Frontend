@@ -1,11 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Filter, CalendarRange, Clock } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { managerBookings, type ManagerBookingStatus, summarizeBookings } from '@/features/manager/mock';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getBookings, type ManagerBookingStatus } from '@/features/manager/api/managerApi';
+import { toast } from 'sonner';
 
 const statusLabels: Record<ManagerBookingStatus, string> = {
   confirmed: 'Confirmed',
@@ -18,19 +21,56 @@ const statusLabels: Record<ManagerBookingStatus, string> = {
 export function Bookings() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<ManagerBookingStatus | 'all'>('all');
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [meta, setMeta] = useState<any>(null);
 
-  const summary = summarizeBookings(managerBookings);
+  useEffect(() => {
+    const loadBookings = async () => {
+      try {
+        setLoading(true);
+        const params: any = {
+          page,
+          per_page: 10,
+        };
+        if (search) params.search = search;
+        if (status !== 'all') params.status = status;
+        const response = await getBookings(params);
+        // Transform backend data to frontend format
+        const transformed = (response.data || []).map((booking: any) => ({
+          id: booking.id,
+          guestName: booking.user?.name || 'Guest',
+          roomNumber: booking.room?.number || 'N/A',
+          roomType: booking.room?.type || 'N/A',
+          checkIn: booking.check_in,
+          checkOut: booking.check_out,
+          status: booking.status,
+          amount: booking.total_amount || booking.room?.price || 0,
+          channel: booking.source || 'web',
+          createdAt: booking.created_at,
+        }));
+        setBookings(transformed);
+        setMeta(response.meta);
+      } catch (error: any) {
+        console.error('Failed to load bookings:', error);
+        toast.error(error.response?.data?.message || 'Failed to load bookings');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadBookings();
+  }, [search, status, page]);
 
-  const filtered = useMemo(() => {
-    return managerBookings.filter((b) => {
-      const matchesSearch =
-        b.guestName.toLowerCase().includes(search.toLowerCase()) ||
-        b.roomNumber.toLowerCase().includes(search.toLowerCase()) ||
-        b.roomType.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = status === 'all' ? true : b.status === status;
-      return matchesSearch && matchesStatus;
-    });
-  }, [search, status]);
+  const summary = {
+    total: meta?.total || 0,
+    byStatus: {
+      confirmed: bookings.filter((b) => b.status === 'confirmed').length,
+      pending: bookings.filter((b) => b.status === 'pending').length,
+      checked_in: bookings.filter((b) => b.status === 'checked_in').length,
+      cancelled: bookings.filter((b) => b.status === 'cancelled').length,
+    },
+  };
 
   return (
     <div className="space-y-6">
@@ -38,7 +78,7 @@ export function Bookings() {
         <div>
           <h1 className="text-3xl font-bold">Bookings</h1>
           <p className="text-muted-foreground">
-            Overview, search, and filter bookings (mock data)
+            Overview, search, and filter bookings
           </p>
         </div>
       </div>
@@ -75,13 +115,19 @@ export function Bookings() {
             <Input
               placeholder="Search guest, room, type..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className="pl-9"
             />
           </div>
           <div className="flex items-center gap-2 md:w-1/3">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={status} onValueChange={(v) => setStatus(v as ManagerBookingStatus | 'all')}>
+            <Select value={status} onValueChange={(v) => {
+              setStatus(v as ManagerBookingStatus | 'all');
+              setPage(1);
+            }}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -103,61 +149,95 @@ export function Bookings() {
       <Card>
         <CardHeader>
           <CardTitle>Booking history</CardTitle>
-          <CardDescription>Latest bookings (mock)</CardDescription>
+          <CardDescription>Latest bookings</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Guest</TableHead>
-                <TableHead>Room</TableHead>
-                <TableHead>Dates</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Channel</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((b) => (
-                <TableRow key={b.id}>
-                  <TableCell>#{b.id}</TableCell>
-                  <TableCell>{b.guestName}</TableCell>
-                  <TableCell>
-                    {b.roomNumber} · {b.roomType}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <CalendarRange className="h-4 w-4" />
-                      {b.checkIn} → {b.checkOut}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="capitalize">
-                      {statusLabels[b.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="capitalize">{b.channel}</TableCell>
-                  <TableCell>${b.amount.toLocaleString()}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {new Date(b.createdAt).toLocaleString()}
-                  </TableCell>
-                </TableRow>
+          {loading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
-              {filtered.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
-                    No bookings match your filters.
-                  </TableCell>
-                </TableRow>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Guest</TableHead>
+                    <TableHead>Room</TableHead>
+                    <TableHead>Dates</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Channel</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Created</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bookings.map((b) => (
+                    <TableRow key={b.id}>
+                      <TableCell>#{b.id}</TableCell>
+                      <TableCell>{b.guestName}</TableCell>
+                      <TableCell>
+                        {b.roomNumber} · {b.roomType}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <CalendarRange className="h-4 w-4" />
+                          {b.checkIn} → {b.checkOut}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="capitalize">
+                          {statusLabels[b.status] || b.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="capitalize">{b.channel}</TableCell>
+                      <TableCell>${b.amount?.toLocaleString() || '0'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-4 w-4" />
+                        {new Date(b.createdAt).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {bookings.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground">
+                        No bookings match your filters.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+              {meta && meta.last_page > 1 && (
+                <div className="flex items-center justify-between pt-4">
+                  <span className="text-xs text-muted-foreground">
+                    Page {meta.current_page} of {meta.last_page}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(meta.last_page, p + 1))}
+                      disabled={page === meta.last_page}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
               )}
-            </TableBody>
-          </Table>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
   );
 }
-

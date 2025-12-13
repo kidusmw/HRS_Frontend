@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Activity, ShieldCheck, UserCheck, Search } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { managerOperations } from '@/features/manager/mock';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getOverrides, createOverride } from '@/features/manager/api/managerApi';
 import { toast } from 'sonner';
 
 export function Operations() {
@@ -16,40 +17,69 @@ export function Operations() {
   const [overrideNote, setOverrideNote] = useState('');
   const [activityPage, setActivityPage] = useState(1);
   const [activitySearch, setActivitySearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [activityLoading, setActivityLoading] = useState(true);
+  const [activities, setActivities] = useState<any[]>([]);
+  const [activityMeta, setActivityMeta] = useState<any>(null);
 
-  const ACTIVITY_PAGE_SIZE = 6;
-
-  const recentOps = useMemo(() => managerOperations, []);
-
-  const activityTotalPages = Math.max(
-    1,
-    Math.ceil(
-      recentOps.filter((op) => {
-        if (!activitySearch.trim()) return true;
-        return String(op.bookingId).includes(activitySearch.trim());
-      }).length / ACTIVITY_PAGE_SIZE
-    )
-  );
-  const activityPageData = useMemo(() => {
-    const filtered = recentOps.filter((op) => {
-      if (!activitySearch.trim()) return true;
-      return String(op.bookingId).includes(activitySearch.trim());
-    });
-    const start = (activityPage - 1) * ACTIVITY_PAGE_SIZE;
-    return filtered.slice(start, start + ACTIVITY_PAGE_SIZE);
-  }, [recentOps, activityPage, activitySearch]);
+  useEffect(() => {
+    const loadActivities = async () => {
+      try {
+        setActivityLoading(true);
+        const params: any = {
+          page: activityPage,
+          per_page: 6,
+        };
+        if (activitySearch) {
+          const bookingId = parseInt(activitySearch);
+          if (!isNaN(bookingId)) {
+            params.booking_id = bookingId;
+          }
+        }
+        const response = await getOverrides(params);
+        setActivities(response.data || []);
+        setActivityMeta(response.meta);
+      } catch (error: any) {
+        console.error('Failed to load activities:', error);
+        toast.error(error.response?.data?.message || 'Failed to load activities');
+      } finally {
+        setActivityLoading(false);
+      }
+    };
+    loadActivities();
+  }, [activityPage, activitySearch]);
 
   useEffect(() => {
     setActivityPage(1);
   }, [activitySearch]);
-  const submitOverride = (e: React.FormEvent) => {
+
+  const submitOverride = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!overrideBookingId) {
       toast.error('Enter a booking ID to override.');
       return;
     }
-    toast.success(`Override queued for booking #${overrideBookingId}`);
-    setOverrideNote('');
+    try {
+      setLoading(true);
+      await createOverride({
+        booking_id: parseInt(overrideBookingId),
+        new_status: overrideStatus as any,
+        note: overrideNote || undefined,
+      });
+      toast.success(`Override created for booking #${overrideBookingId}`);
+      setOverrideBookingId('');
+      setOverrideStatus('confirmed');
+      setOverrideNote('');
+      // Reload activities
+      const response = await getOverrides({ page: 1, per_page: 6 });
+      setActivities(response.data || []);
+      setActivityMeta(response.meta);
+    } catch (error: any) {
+      console.error('Failed to create override:', error);
+      toast.error(error.response?.data?.message || 'Failed to create override');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,7 +87,7 @@ export function Operations() {
       <div>
         <h1 className="text-3xl font-bold">Operations</h1>
         <p className="text-muted-foreground">
-          Supervise receptionist actions and handle reservation overrides (mocked)
+          Supervise receptionist actions and handle reservation overrides
         </p>
       </div>
 
@@ -81,57 +111,74 @@ export function Operations() {
                   className="pl-9"
                 />
               </div>
-              <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
-                <span>
-                  Page {activityPage} of {activityTotalPages}
-                </span>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
-                    disabled={activityPage === 1}
-                  >
-                    Prev
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setActivityPage((p) => Math.min(activityTotalPages, p + 1))}
-                    disabled={activityPage === activityTotalPages}
-                  >
-                    Next
-                  </Button>
+              {activityMeta && activityMeta.last_page > 1 && (
+                <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+                  <span>
+                    Page {activityMeta.current_page} of {activityMeta.last_page}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActivityPage((p) => Math.max(1, p - 1))}
+                      disabled={activityPage === 1}
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActivityPage((p) => Math.min(activityMeta.last_page, p + 1))}
+                      disabled={activityPage === activityMeta.last_page}
+                    >
+                      Next
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {activityPageData.map((op) => (
-              <div
-                key={op.id}
-                className="flex items-start justify-between rounded-lg border p-3 text-sm"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-semibold">{op.action}</span>
-                  </div>
-                  <div className="text-muted-foreground">
-                    Booking #{op.bookingId} · {op.details}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {op.receptionistName} · {new Date(op.timestamp).toLocaleString()}
-                  </div>
-                </div>
-                <Badge
-                  variant={op.status === 'flagged' ? 'destructive' : 'secondary'}
-                  className="capitalize"
-                >
-                  {op.status}
-                </Badge>
+            {activityLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
               </div>
-            ))}
+            ) : (
+              <>
+                {activities.map((op) => (
+                  <div
+                    key={op.id}
+                    className="flex items-start justify-between rounded-lg border p-3 text-sm"
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Activity className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-semibold">Override</span>
+                      </div>
+                      <div className="text-muted-foreground">
+                        Booking #{op.reservation_id} · Status: {op.new_status}
+                      </div>
+                      {op.note && (
+                        <div className="text-muted-foreground">{op.note}</div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(op.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="capitalize">
+                      Override
+                    </Badge>
+                  </div>
+                ))}
+                {activities.length === 0 && (
+                  <div className="text-sm text-muted-foreground text-center py-4">
+                    No recent activities.
+                  </div>
+                )}
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -141,7 +188,7 @@ export function Operations() {
               <ShieldCheck className="h-4 w-4 text-muted-foreground" />
               Override reservation
             </CardTitle>
-            <CardDescription>Manager-only override (local state only)</CardDescription>
+            <CardDescription>Manager-only override</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-4" onSubmit={submitOverride}>
@@ -153,6 +200,7 @@ export function Operations() {
                   value={overrideBookingId}
                   onChange={(e) => setOverrideBookingId(e.target.value)}
                   required
+                  type="number"
                 />
               </div>
               <div className="space-y-2">
@@ -179,16 +227,13 @@ export function Operations() {
                   onChange={(e) => setOverrideNote(e.target.value)}
                 />
               </div>
-              <Button type="submit">Queue override</Button>
-              <p className="text-xs text-muted-foreground">
-                This is a UI-only flow; connect to an API to apply overrides server-side.
-              </p>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Creating...' : 'Create override'}
+              </Button>
             </form>
           </CardContent>
         </Card>
       </div>
-
     </div>
   );
 }
-

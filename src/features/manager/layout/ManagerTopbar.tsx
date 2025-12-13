@@ -12,7 +12,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@/app/store';
 import { logoutUserThunk } from '@/features/auth/authSlice';
 import { useNavigate } from 'react-router-dom';
-import { NotificationBell } from '@/features/admin/components/NotificationBell';
+import { NotificationBell } from '@/features/manager/components/NotificationBell';
 
 export function ManagerTopbar() {
   const navigate = useNavigate();

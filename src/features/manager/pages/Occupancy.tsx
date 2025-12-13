@@ -1,18 +1,51 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, Bell, Gauge, Hotel } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { managerAlerts, managerOccupancy } from '@/features/manager/mock';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getOccupancy, getAlerts } from '@/features/manager/api/managerApi';
+import { toast } from 'sonner';
 
 export function Occupancy() {
   const [alertPage, setAlertPage] = useState(1);
-  const ALERT_PAGE_SIZE = 5;
+  const [occupancy, setOccupancy] = useState<any[]>([]);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [alertsMeta, setAlertsMeta] = useState<any>(null);
+  const [loadingOccupancy, setLoadingOccupancy] = useState(true);
+  const [loadingAlerts, setLoadingAlerts] = useState(true);
 
-  const alertTotalPages = Math.max(1, Math.ceil(managerAlerts.length / ALERT_PAGE_SIZE));
-  const alertPageData = useMemo(() => {
-    const start = (alertPage - 1) * ALERT_PAGE_SIZE;
-    return managerAlerts.slice(start, start + ALERT_PAGE_SIZE);
+  useEffect(() => {
+    const loadOccupancy = async () => {
+      try {
+        setLoadingOccupancy(true);
+        const response = await getOccupancy();
+        setOccupancy(response.data || []);
+      } catch (error: any) {
+        console.error('Failed to load occupancy:', error);
+        toast.error(error.response?.data?.message || 'Failed to load occupancy');
+      } finally {
+        setLoadingOccupancy(false);
+      }
+    };
+    loadOccupancy();
+  }, []);
+
+  useEffect(() => {
+    const loadAlerts = async () => {
+      try {
+        setLoadingAlerts(true);
+        const response = await getAlerts({ page: alertPage, per_page: 5 });
+        setAlerts(response.data || []);
+        setAlertsMeta(response.meta);
+      } catch (error: any) {
+        console.error('Failed to load alerts:', error);
+        toast.error(error.response?.data?.message || 'Failed to load alerts');
+      } finally {
+        setLoadingAlerts(false);
+      }
+    };
+    loadAlerts();
   }, [alertPage]);
 
   return (
@@ -23,99 +56,123 @@ export function Occupancy() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        {managerOccupancy.map((item) => (
-          <Card key={item.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Gauge className="h-4 w-4 text-muted-foreground" />
-                {item.label}
-              </CardTitle>
-              <CardDescription>
-                {item.roomsOccupied} occupied / {item.roomsAvailable} available
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="text-2xl font-bold">{item.occupancyRate}%</div>
-              <div className="h-2 w-full rounded-full bg-muted">
-                <div
-                  className="h-2 rounded-full bg-primary"
-                  style={{ width: `${item.occupancyRate}%` }}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {loadingOccupancy ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))
+        ) : (
+          occupancy.map((item) => (
+            <Card key={item.label}>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Gauge className="h-4 w-4 text-muted-foreground" />
+                  {item.label}
+                </CardTitle>
+                <CardDescription>
+                  {item.roomsOccupied} occupied / {item.roomsAvailable} available
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="text-2xl font-bold">{item.occupancyRate}%</div>
+                <div className="h-2 w-full rounded-full bg-muted">
+                  <div
+                    className="h-2 rounded-full bg-primary"
+                    style={{ width: `${item.occupancyRate}%` }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-muted-foreground" />
-            Alerts
+            <Bell className="h-5 w-5 text-muted-foreground" />
+            System & Hotel Alerts
           </CardTitle>
-          <CardDescription>System and hotel alerts (mocked)</CardDescription>
+          <CardDescription>Active alerts requiring attention</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {alertPageData.map((alert) => (
-            <div
-              key={alert.id}
-              className="flex items-start justify-between rounded-lg border p-3 text-sm"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  {alert.severity === 'critical' ? (
-                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                  ) : (
-                    <Hotel className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <span className="font-semibold capitalize">
-                    {alert.type} · {alert.severity}
-                  </span>
-                </div>
-                <div className="text-muted-foreground">{alert.message}</div>
-                <div className="text-xs text-muted-foreground">
-                  {new Date(alert.createdAt).toLocaleString()}
-                </div>
-              </div>
-              <Badge
-                variant={alert.severity === 'critical' ? 'destructive' : 'secondary'}
-                className="capitalize"
-              >
-                {alert.status}
-              </Badge>
+          {loadingAlerts ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
             </div>
-          ))}
-          {managerAlerts.length === 0 && (
-            <div className="text-sm text-muted-foreground">No alerts.</div>
-          )}
-          {managerAlerts.length > 0 && (
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs text-muted-foreground">
-                Page {alertPage} of {alertTotalPages}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAlertPage((p) => Math.max(1, p - 1))}
-                  disabled={alertPage === 1}
+          ) : (
+            <>
+              {alerts.map((alert) => (
+                <div
+                  key={alert.id}
+                  className="flex items-start justify-between rounded-lg border p-3 text-sm"
                 >
-                  Prev
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAlertPage((p) => Math.min(alertTotalPages, p + 1))}
-                  disabled={alertPage === alertTotalPages}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle
+                        className={`h-4 w-4 ${
+                          alert.severity === 'critical'
+                            ? 'text-red-500'
+                            : alert.severity === 'warning'
+                              ? 'text-amber-500'
+                              : 'text-blue-500'
+                        }`}
+                      />
+                      <span className="font-semibold">{alert.message}</span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      {alert.type} · {new Date(alert.createdAt).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <Badge
+                      variant={alert.severity === 'critical' ? 'destructive' : 'secondary'}
+                      className="capitalize"
+                    >
+                      {alert.severity}
+                    </Badge>
+                    <Badge variant="outline" className="capitalize">
+                      {alert.status}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+              {alerts.length === 0 && (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  No alerts at this time.
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
+
+      {alertsMeta && alertsMeta.last_page > 1 && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">
+            Page {alertsMeta.current_page} of {alertsMeta.last_page}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAlertPage((p) => Math.max(1, p - 1))}
+              disabled={alertPage === 1}
+            >
+              Prev
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAlertPage((p) => Math.min(alertsMeta.last_page, p + 1))}
+              disabled={alertPage === alertsMeta.last_page}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

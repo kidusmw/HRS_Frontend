@@ -125,6 +125,7 @@ export interface CreateUserDto {
   password?: string;
   phoneNumber?: string;
   active?: boolean;
+  supervisorId?: number | null;
 }
 
 export interface UpdateUserDto {
@@ -134,6 +135,7 @@ export interface UpdateUserDto {
   password?: string;
   phoneNumber?: string;
   active?: boolean;
+  supervisorId?: number | null;
 }
 
 export const createUser = async (data: CreateUserDto): Promise<{ data: UserListItem }> => {
@@ -145,6 +147,10 @@ export const createUser = async (data: CreateUserDto): Promise<{ data: UserListI
     phoneNumber: data.phoneNumber,
     active: data.active,
   };
+
+  if (data.supervisorId !== undefined) {
+    payload.supervisor_id = data.supervisorId;
+  }
   
   if (data.password) {
     payload.password = data.password;
@@ -167,6 +173,7 @@ export const updateUser = async (
   if (data.password !== undefined && data.password !== '') payload.password = data.password;
   if (data.phoneNumber !== undefined) payload.phoneNumber = data.phoneNumber;
   if (data.active !== undefined) payload.active = data.active;
+  if (data.supervisorId !== undefined) payload.supervisor_id = data.supervisorId;
   
   const response = await api.put(`${BASE_URL}/users/${id}`, payload);
   return response.data;
