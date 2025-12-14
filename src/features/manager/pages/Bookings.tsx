@@ -30,6 +30,7 @@ export function Bookings() {
     const loadBookings = async () => {
       try {
         setLoading(true);
+        // this is the backend params meaning 
         const params: any = {
           page,
           per_page: 10,
@@ -68,6 +69,7 @@ export function Bookings() {
       confirmed: bookings.filter((b) => b.status === 'confirmed').length,
       pending: bookings.filter((b) => b.status === 'pending').length,
       checked_in: bookings.filter((b) => b.status === 'checked_in').length,
+      checked_out: bookings.filter((b) => b.status === 'checked_out').length,
       cancelled: bookings.filter((b) => b.status === 'cancelled').length,
     },
   };
@@ -91,7 +93,7 @@ export function Bookings() {
           </CardHeader>
           <CardContent className="text-2xl font-bold">{summary.total}</CardContent>
         </Card>
-        {(['confirmed', 'pending', 'checked_in', 'cancelled'] as ManagerBookingStatus[]).map(
+        {(['confirmed', 'pending', 'checked_in', 'checked_out', 'cancelled'] as ManagerBookingStatus[]).map(
           (key) => (
             <Card key={key}>
               <CardHeader className="pb-2">
@@ -117,6 +119,7 @@ export function Bookings() {
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
+                // reset the page to 1 when the search changes
                 setPage(1);
               }}
               className="pl-9"
@@ -189,7 +192,7 @@ export function Bookings() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="capitalize">
-                          {statusLabels[b.status] || b.status}
+                          {statusLabels[b.status as ManagerBookingStatus] || b.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="capitalize">{b.channel}</TableCell>

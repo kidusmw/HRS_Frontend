@@ -203,7 +203,7 @@ export function Employees() {
                     <span className="font-semibold">{emp.name}</span>
                     <Badge
                       variant="secondary"
-                      className={cn('capitalize', employeeStatusStyles[emp.status])}
+                      className={cn('capitalize', employeeStatusStyles[emp.status as 'active' | 'inactive'])}
                     >
                       {emp.status}
                     </Badge>
@@ -213,7 +213,7 @@ export function Employees() {
                 </div>
                 <Badge
                   variant="secondary"
-                  className={cn('capitalize', attendanceStatusStyles[att.status])}
+                  className={cn('capitalize', attendanceStatusStyles[att.status as 'present' | 'absent' | 'late' | 'on_leave'])}
                 >
                   {att.status.replace('_', ' ')}
                 </Badge>
@@ -304,7 +304,7 @@ export function Employees() {
                     <span className="text-muted-foreground">Shift</span>
                     <Badge
                       variant="secondary"
-                      className={cn('capitalize', shiftStyles[emp.shift])}
+                      className={cn('capitalize', shiftStyles[emp.shift as 'morning' | 'evening' | 'night'])}
                     >
                       {emp.shift}
                     </Badge>
@@ -364,4 +364,3 @@ export function Employees() {
     </div>
   );
 }
-
