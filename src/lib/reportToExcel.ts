@@ -93,3 +93,152 @@ export function downloadReportAsExcel(
   XLSX.writeFile(workbook, filename);
 }
 
+/**
+ * Receptionist Operational Report Data Structure
+ */
+export interface ReceptionistReportData {
+  arrivals: {
+    total: number;
+    byDate: Record<string, number>;
+    list: Array<{
+      id: number;
+      guestName: string;
+      roomNumber: string;
+      checkIn: string;
+      status: string;
+    }>;
+  };
+  departures: {
+    total: number;
+    byDate: Record<string, number>;
+    list: Array<{
+      id: number;
+      guestName: string;
+      roomNumber: string;
+      checkOut: string;
+    }>;
+  };
+  inHouse: {
+    total: number;
+    list: Array<{
+      id: number;
+      guestName: string;
+      roomNumber: string;
+      checkIn: string;
+      checkOut: string;
+    }>;
+  };
+  occupancy: {
+    rate: number;
+    totalRooms: number;
+    occupiedRooms: number;
+    availableRooms: number;
+  };
+  dateRange: {
+    start: string;
+    end: string;
+  };
+}
+
+/**
+ * Converts receptionist operational report data to Excel format and triggers download
+ * Uses SheetJS (https://sheetjs.com/) to create the Excel file
+ * 
+ * @param reportData - The operational report data
+ * @param range - The date range for the report (used in filename)
+ */
+export function downloadReceptionistReportAsExcel(
+  reportData: ReceptionistReportData,
+  range: string
+): void {
+  // Create a new workbook
+  const workbook = XLSX.utils.book_new();
+
+  // Helper function to format range label
+  const getRangeLabel = (range: string): string => {
+    const labels: Record<string, string> = {
+      today: 'Today',
+      yesterday: 'Yesterday',
+      last_7_days: 'Last 7 Days',
+      last_30_days: 'Last 30 Days',
+    };
+    return labels[range] || range;
+  };
+
+  // Sheet 1: Summary Overview
+  const summaryData = [
+    ['Operational Report'],
+    ['Date Range', `${reportData.dateRange.start} to ${reportData.dateRange.end}`],
+    ['Report Period', getRangeLabel(range)],
+    [''],
+    ['OPERATIONAL METRICS'],
+    ['Arrivals', reportData.arrivals.total],
+    ['Departures', reportData.departures.total],
+    ['In-House Guests', reportData.inHouse.total],
+    [''],
+    ['OCCUPANCY METRICS'],
+    ['Occupancy Rate', `${reportData.occupancy.rate.toFixed(1)}%`],
+    ['Total Rooms', reportData.occupancy.totalRooms],
+    ['Occupied Rooms', reportData.occupancy.occupiedRooms],
+    ['Available Rooms', reportData.occupancy.availableRooms],
+  ];
+
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+
+  // Sheet 2: Arrivals (Check-ins)
+  if (reportData.arrivals.list && reportData.arrivals.list.length > 0) {
+    const arrivalsData = [
+      ['Guest Name', 'Room Number', 'Check-in Date', 'Status'],
+      ...reportData.arrivals.list.map((arrival) => [
+        arrival.guestName,
+        arrival.roomNumber,
+        arrival.checkIn,
+        arrival.status,
+      ]),
+    ];
+
+    const arrivalsSheet = XLSX.utils.aoa_to_sheet(arrivalsData);
+    XLSX.utils.book_append_sheet(workbook, arrivalsSheet, 'Arrivals');
+  }
+
+  // Sheet 3: Departures (Check-outs)
+  if (reportData.departures.list && reportData.departures.list.length > 0) {
+    const departuresData = [
+      ['Guest Name', 'Room Number', 'Check-out Date'],
+      ...reportData.departures.list.map((departure) => [
+        departure.guestName,
+        departure.roomNumber,
+        departure.checkOut,
+      ]),
+    ];
+
+    const departuresSheet = XLSX.utils.aoa_to_sheet(departuresData);
+    XLSX.utils.book_append_sheet(workbook, departuresSheet, 'Departures');
+  }
+
+  // Sheet 4: In-House Guests
+  if (reportData.inHouse.list && reportData.inHouse.list.length > 0) {
+    const inHouseData = [
+      ['Guest Name', 'Room Number', 'Check-in Date', 'Check-out Date'],
+      ...reportData.inHouse.list.map((guest) => [
+        guest.guestName,
+        guest.roomNumber,
+        guest.checkIn,
+        guest.checkOut,
+      ]),
+    ];
+
+    const inHouseSheet = XLSX.utils.aoa_to_sheet(inHouseData);
+    XLSX.utils.book_append_sheet(workbook, inHouseSheet, 'In-House');
+  }
+
+  // Generate filename with timestamp
+  const timestamp = new Date().toISOString().split('T')[0];
+  const rangeLabel = getRangeLabel(range).replace(/\s+/g, '_');
+  const filename = `Operational_Report_${rangeLabel}_${timestamp}.xlsx`;
+
+  // Write the file and trigger download
+  XLSX.writeFile(workbook, filename);
+}
+
