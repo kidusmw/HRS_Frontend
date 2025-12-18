@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Filter, CalendarRange, Plus, Edit, X, Check, LogIn, LogOut } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -279,7 +279,7 @@ export function Reservations() {
           </div>
           <div className="flex items-center gap-2 md:w-1/4">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <Select value={status} onValueChange={(v) => setStatus(v as MockReservation['status'] | 'all')}>
+            <Select value={status} onValueChange={(v) => setStatus(v as ReservationStatus | 'all')}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -553,7 +553,7 @@ export function Reservations() {
           <DialogHeader>
             <DialogTitle>Check In Guest</DialogTitle>
             <DialogDescription>
-              Verify reservation details and complete check-in for {selectedReservation?.guestName}
+              Verify reservation details and complete check-in for {selectedReservation?.user?.name || 'Guest'}
             </DialogDescription>
           </DialogHeader>
           {selectedReservation && (
@@ -698,16 +698,26 @@ export function Reservations() {
           {selectedReservation && (
             <div className="space-y-2 py-4">
               <div className="text-sm">
-                <strong>Guest:</strong> {selectedReservation.guestName}
+                <strong>Guest:</strong> {selectedReservation.user?.name || 'Guest'}
               </div>
               <div className="text-sm">
-                <strong>Room:</strong> {selectedReservation.roomNumber} - {selectedReservation.roomType}
+                <strong>Room:</strong> {selectedReservation.room?.id || 'N/A'} - {selectedReservation.room?.type || 'N/A'}
               </div>
               <div className="text-sm">
-                <strong>Dates:</strong> {selectedReservation.checkIn} to {selectedReservation.checkOut}
+                <strong>Dates:</strong> {selectedReservation.check_in} to {selectedReservation.check_out}
               </div>
               <div className="text-sm">
-                <strong>Amount:</strong> ${selectedReservation.amount}
+                <strong>Amount:</strong> $
+                {selectedReservation.room?.price
+                  ? (() => {
+                      const checkIn = new Date(selectedReservation.check_in);
+                      const checkOut = new Date(selectedReservation.check_out);
+                      const nights = Math.ceil(
+                        (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)
+                      );
+                      return (selectedReservation.room.price * nights).toLocaleString();
+                    })()
+                  : '0'}
               </div>
             </div>
           )}
