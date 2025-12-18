@@ -179,3 +179,57 @@ export const checkOutReservation = async (
   return response.data;
 };
 
+/*
+ * Reports
+ */
+export interface ReceptionistReportData {
+  arrivals: {
+    total: number;
+    list: Array<{
+      id: number;
+      guestName: string;
+      roomNumber: string;
+      checkIn: string;
+      status: string;
+    }>;
+  };
+  departures: {
+    total: number;
+    list: Array<{
+      id: number;
+      guestName: string;
+      roomNumber: string;
+      checkOut: string;
+    }>;
+  };
+  inHouse: {
+    total: number;
+    list: Array<{
+      id: number;
+      guestName: string;
+      roomNumber: string;
+      checkIn: string;
+      checkOut: string;
+    }>;
+  };
+  occupancy: {
+    rate: number;
+    totalRooms: number;
+    occupiedRooms: number;
+    availableRooms: number;
+  };
+  dateRange: {
+    start: string;
+    end: string;
+  };
+}
+
+export interface GetReportsParams {
+  range?: 'today' | 'yesterday' | 'last_7_days' | 'last_30_days';
+}
+
+export const getReports = async (params?: GetReportsParams): Promise<ReceptionistReportData> => {
+  const response = await api.get(`${BASE_URL}/reports`, { params });
+  return response.data;
+};
+

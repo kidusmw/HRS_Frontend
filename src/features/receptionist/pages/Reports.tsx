@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { FileText, Users, Bed, LogIn, LogOut, Download, Printer } from 'lucide-react';
+import { FileText, Users, Bed, LogIn, LogOut, Download } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { mockReservations, mockRooms } from '../mockData';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getReports, type ReceptionistReportData } from '../api/receptionistApi';
 import { downloadReceptionistReportAsExcel } from '@/lib/reportToExcel';
 import { toast } from 'sonner';
 
@@ -20,102 +21,24 @@ const rangeLabels: Record<ReportRange, string> = {
 
 export function Reports() {
   const [range, setRange] = useState<ReportRange>('today');
-  const [reportData, setReportData] = useState<any>(null);
+  const [reportData, setReportData] = useState<ReceptionistReportData | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    generateReport();
+    loadReport();
   }, [range]);
 
-  const generateReport = () => {
-    const today = new Date();
-    const startDate = new Date();
-    const endDate = new Date();
-
-    switch (range) {
-      case 'today':
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case 'yesterday':
-        startDate.setDate(today.getDate() - 1);
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setDate(today.getDate() - 1);
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case 'last_7_days':
-        startDate.setDate(today.getDate() - 7);
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
-        break;
-      case 'last_30_days':
-        startDate.setDate(today.getDate() - 30);
-        startDate.setHours(0, 0, 0, 0);
-        endDate.setHours(23, 59, 59, 999);
-        break;
+  const loadReport = async () => {
+    try {
+      setLoading(true);
+      const data = await getReports({ range });
+      setReportData(data);
+    } catch (error: any) {
+      console.error('Failed to load report:', error);
+      toast.error(error.response?.data?.message || 'Failed to load report');
+    } finally {
+      setLoading(false);
     }
-
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = endDate.toISOString().split('T')[0];
-
-    // Filter reservations by date range
-    const arrivals = mockReservations.filter(
-      (r) => r.checkIn >= startDateStr && r.checkIn <= endDateStr
-    );
-    const departures = mockReservations.filter(
-      (r) => r.checkOut >= startDateStr && r.checkOut <= endDateStr && r.status === 'checked_out'
-    );
-    const inHouse = mockReservations.filter((r) => r.status === 'checked_in');
-
-    // Calculate occupancy
-    const totalRooms = mockRooms.length;
-    const occupiedRooms = mockRooms.filter((r) => r.status === 'occupied').length;
-    const availableRooms = mockRooms.filter((r) => r.status === 'available').length;
-    const occupancyRate = totalRooms > 0 ? ((occupiedRooms / totalRooms) * 100).toFixed(1) : '0';
-
-    // Group by date for daily breakdown
-    const arrivalsByDate: Record<string, number> = {};
-    const departuresByDate: Record<string, number> = {};
-
-    arrivals.forEach((r) => {
-      const date = r.checkIn;
-      arrivalsByDate[date] = (arrivalsByDate[date] || 0) + 1;
-    });
-
-    departures.forEach((r) => {
-      const date = r.checkOut;
-      departuresByDate[date] = (departuresByDate[date] || 0) + 1;
-    });
-
-    setReportData({
-      arrivals: {
-        total: arrivals.length,
-        byDate: arrivalsByDate,
-        list: arrivals,
-      },
-      departures: {
-        total: departures.length,
-        byDate: departuresByDate,
-        list: departures,
-      },
-      inHouse: {
-        total: inHouse.length,
-        list: inHouse,
-      },
-      occupancy: {
-        rate: parseFloat(occupancyRate),
-        totalRooms,
-        occupiedRooms,
-        availableRooms,
-      },
-      dateRange: {
-        start: startDateStr,
-        end: endDateStr,
-      },
-    });
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   const handleDownload = () => {
@@ -124,7 +47,33 @@ export function Reports() {
       return;
     }
     try {
-      downloadReceptionistReportAsExcel(reportData, range);
+      // Compute byDate fields for Excel export
+      const arrivalsByDate: Record<string, number> = {};
+      const departuresByDate: Record<string, number> = {};
+
+      reportData.arrivals.list.forEach((arrival) => {
+        const date = arrival.checkIn;
+        arrivalsByDate[date] = (arrivalsByDate[date] || 0) + 1;
+      });
+
+      reportData.departures.list.forEach((departure) => {
+        const date = departure.checkOut;
+        departuresByDate[date] = (departuresByDate[date] || 0) + 1;
+      });
+
+      const excelData = {
+        ...reportData,
+        arrivals: {
+          ...reportData.arrivals,
+          byDate: arrivalsByDate,
+        },
+        departures: {
+          ...reportData.departures,
+          byDate: departuresByDate,
+        },
+      };
+
+      downloadReceptionistReportAsExcel(excelData, range);
       toast.success('Report downloaded successfully');
     } catch (error) {
       console.error('Failed to download report:', error);
@@ -147,10 +96,6 @@ export function Reports() {
               <Button onClick={handleDownload} variant="outline">
                 <Download className="mr-2 h-4 w-4" />
                 Download
-              </Button>
-              <Button onClick={handlePrint} variant="outline">
-                <Printer className="mr-2 h-4 w-4" />
-                Print
               </Button>
             </>
           )}
@@ -187,7 +132,16 @@ export function Reports() {
         </CardContent>
       </Card>
 
-      {reportData ? (
+      {loading ? (
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-32" />
+            ))}
+          </div>
+          <Skeleton className="h-64" />
+        </div>
+      ) : reportData ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
@@ -259,14 +213,14 @@ export function Reports() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reportData.arrivals.list.map((arrival: any) => (
+                      {reportData.arrivals.list.map((arrival) => (
                         <TableRow key={arrival.id}>
                           <TableCell className="font-medium">{arrival.guestName}</TableCell>
                           <TableCell>{arrival.roomNumber}</TableCell>
                           <TableCell>{arrival.checkIn}</TableCell>
                           <TableCell>
                             <Badge variant="secondary" className="capitalize">
-                              {arrival.status}
+                              {arrival.status.replace('_', ' ')}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -297,7 +251,7 @@ export function Reports() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reportData.departures.list.map((departure: any) => (
+                      {reportData.departures.list.map((departure) => (
                         <TableRow key={departure.id}>
                           <TableCell className="font-medium">{departure.guestName}</TableCell>
                           <TableCell>{departure.roomNumber}</TableCell>
@@ -360,7 +314,7 @@ export function Reports() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {reportData.inHouse.list.map((guest: any) => (
+                    {reportData.inHouse.list.map((guest) => (
                       <TableRow key={guest.id}>
                         <TableCell className="font-medium">{guest.guestName}</TableCell>
                         <TableCell>{guest.roomNumber}</TableCell>
