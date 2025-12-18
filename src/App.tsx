@@ -10,6 +10,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 import { SuperAdminRoute } from './components/SuperAdminRoute'
 import { AdminRoute } from './components/AdminRoute'
 import { ManagerRoute } from './components/ManagerRoute'
+import { ReceptionistRoute } from './components/ReceptionistRoute'
 import NotFoundPage from './features/shared/NotFoundPage'
 import { Dashboard } from './features/super_admin/pages/Dashboard'
 import { Users } from './features/super_admin/pages/Users'
@@ -35,12 +36,21 @@ import { Operations as ManagerOperations } from './features/manager/pages/Operat
 import { Profile as ManagerProfile } from './features/manager/pages/Profile'
 import { Employees as ManagerEmployees } from './features/manager/pages/Employees'
 import { Overrides as ManagerOverrides } from './features/manager/pages/Overrides'
+import { Dashboard as ReceptionistDashboard } from './features/receptionist/pages/Dashboard'
+import { Reservations as ReceptionistReservations } from './features/receptionist/pages/Reservations'
+import { Rooms as ReceptionistRooms } from './features/receptionist/pages/Rooms'
+import { Reports as ReceptionistReports } from './features/receptionist/pages/Reports'
+import { Profile as ReceptionistProfile } from './features/receptionist/pages/Profile'
 
 function RoleRedirect() {
   const user = useSelector((state: RootState) => state.auth.user)
 
   if (!user) {
     return <Navigate to="/login" replace />
+  }
+
+  if (user.role === 'receptionist') {
+    return <Navigate to="/receptionist/dashboard" replace />
   }
 
   if (user.role === 'manager') {
@@ -288,6 +298,51 @@ function App() {
           <ManagerRoute>
             <ManagerOverrides />
           </ManagerRoute>
+        }
+      />
+      {/* Receptionist Routes */}
+      <Route
+        path="/receptionist"
+        element={<Navigate to="/receptionist/dashboard" replace />}
+      />
+      <Route
+        path="/receptionist/dashboard"
+        element={
+          <ReceptionistRoute>
+            <ReceptionistDashboard />
+          </ReceptionistRoute>
+        }
+      />
+      <Route
+        path="/receptionist/reservations"
+        element={
+          <ReceptionistRoute>
+            <ReceptionistReservations />
+          </ReceptionistRoute>
+        }
+      />
+      <Route
+        path="/receptionist/rooms"
+        element={
+          <ReceptionistRoute>
+            <ReceptionistRooms />
+          </ReceptionistRoute>
+        }
+      />
+      <Route
+        path="/receptionist/reports"
+        element={
+          <ReceptionistRoute>
+            <ReceptionistReports />
+          </ReceptionistRoute>
+        }
+      />
+      <Route
+        path="/receptionist/profile"
+        element={
+          <ReceptionistRoute>
+            <ReceptionistProfile />
+          </ReceptionistRoute>
         }
       />
       <Route path='*' element={<NotFoundPage />} />

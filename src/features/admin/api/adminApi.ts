@@ -209,13 +209,14 @@ export const getRoom = async (id: number): Promise<{ data: RoomListItem }> => {
   return response.data;
 };
 
-export const createRoom = async (data: CreateRoomDto): Promise<{ data: RoomListItem }> => {
+export const createRoom = async (data: CreateRoomDto): Promise<{ message: string; data: RoomListItem[]; count: number }> => {
   // Convert camelCase to snake_case for backend
   // Note: isAvailable is not sent - it defaults to true on backend and is managed by receptionists/managers
+  // capacity here means "number of rooms to create"
   const payload: any = {
     type: data.type,
     price: data.price,
-    capacity: data.capacity,
+    capacity: data.capacity, // Number of rooms to create
   };
   
   if (data.description !== undefined) {
