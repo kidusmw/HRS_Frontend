@@ -146,7 +146,7 @@ export function Rooms() {
           <div className="flex items-center gap-2 md:w-1/4">
             <Select
               value={statusFilter}
-              onValueChange={(v) => setStatusFilter(v as MockRoom['status'] | 'all')}
+              onValueChange={(v) => setStatusFilter(v as RoomStatus | 'all')}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Status" />
@@ -265,7 +265,7 @@ export function Rooms() {
               <Label htmlFor="room-status">Status</Label>
               <Select
                 value={newStatus}
-                onValueChange={(v) => setNewStatus(v as MockRoom['status'])}
+                onValueChange={(v) => setNewStatus(v as RoomStatus)}
               >
                 <SelectTrigger>
                   <SelectValue />
