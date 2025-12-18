@@ -12,41 +12,86 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Link } from 'react-router-dom';
-import { mockReservations, mockRooms, type MockReservation } from '../mockData';
+import { Skeleton } from '@/components/ui/skeleton';
+import { getDashboardMetrics, getReservations, type ReceptionistReservation } from '../api/receptionistApi';
+import { toast } from 'sonner';
 
 export function Dashboard() {
-  const [todayArrivals, setTodayArrivals] = useState<MockReservation[]>([]);
-  const [todayDepartures, setTodayDepartures] = useState<MockReservation[]>([]);
-  const [inHouse, setInHouse] = useState<MockReservation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState<any>(null);
+  const [todayArrivals, setTodayArrivals] = useState<ReceptionistReservation[]>([]);
+  const [todayDepartures, setTodayDepartures] = useState<ReceptionistReservation[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [confirmedCount, setConfirmedCount] = useState(0);
 
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Today's arrivals
-    const arrivals = mockReservations.filter(
-      (r) => r.checkIn === today && (r.status === 'confirmed' || r.status === 'pending')
-    );
-    setTodayArrivals(arrivals);
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Load dashboard metrics
+        const metricsData = await getDashboardMetrics();
+        setMetrics(metricsData);
 
-    // Today's departures
-    const departures = mockReservations.filter(
-      (r) => r.checkOut === today && (r.status === 'checked_in')
-    );
-    setTodayDepartures(departures);
+        // Load today's arrivals
+        const arrivalsData = await getReservations({
+          status: 'all',
+          date_from: today,
+          date_to: today,
+          per_page: 10,
+        });
+        const arrivals = (arrivalsData.data || []).filter(
+          (r) => r.check_in === today && (r.status === 'confirmed' || r.status === 'pending')
+        );
+        setTodayArrivals(arrivals);
 
-    // Currently in-house
-    const inHouseGuests = mockReservations.filter((r) => r.status === 'checked_in');
-    setInHouse(inHouseGuests);
+        // Load today's departures (checked-in guests with check-out today)
+        const departuresData = await getReservations({
+          status: 'checked_in',
+          per_page: 100,
+        });
+        const todayStr = today;
+        const departures = (departuresData.data || []).filter(
+          (r) => r.check_out === todayStr && r.status === 'checked_in'
+        );
+        setTodayDepartures(departures);
+
+        // Get pending and confirmed counts
+        const allReservations = await getReservations({ status: 'all', per_page: 100 });
+        const pending = (allReservations.data || []).filter((r) => r.status === 'pending').length;
+        const confirmed = (allReservations.data || []).filter((r) => r.status === 'confirmed').length;
+        setPendingCount(pending);
+        setConfirmedCount(confirmed);
+      } catch (error: any) {
+        console.error('Failed to load dashboard data:', error);
+        toast.error(error.response?.data?.message || 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
   }, []);
 
-  const totalRooms = mockRooms.length;
-  const occupiedRooms = mockRooms.filter((r) => r.status === 'occupied').length;
-  const availableRooms = mockRooms.filter((r) => r.status === 'available').length;
-  const maintenanceRooms = mockRooms.filter((r) => r.status === 'maintenance').length;
-  const occupancyRate = totalRooms > 0 ? ((occupiedRooms / totalRooms) * 100).toFixed(1) : '0';
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-9 w-48" />
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-  const pendingReservations = mockReservations.filter((r) => r.status === 'pending').length;
-  const confirmedReservations = mockReservations.filter((r) => r.status === 'confirmed').length;
+  const occupancy = metrics?.occupancy || {
+    rate: 0,
+    totalRooms: 0,
+    occupiedRooms: 0,
+    availableRooms: 0,
+  };
 
   return (
     <div className="space-y-6">
@@ -74,7 +119,7 @@ export function Dashboard() {
             <LogIn className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{todayArrivals.length}</div>
+            <div className="text-2xl font-bold">{metrics?.arrivals || 0}</div>
             <p className="text-xs text-muted-foreground">Guests checking in today</p>
           </CardContent>
         </Card>
@@ -85,7 +130,7 @@ export function Dashboard() {
             <LogOut className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{todayDepartures.length}</div>
+            <div className="text-2xl font-bold">{metrics?.departures || 0}</div>
             <p className="text-xs text-muted-foreground">Guests checking out today</p>
           </CardContent>
         </Card>
@@ -96,7 +141,7 @@ export function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{inHouse.length}</div>
+            <div className="text-2xl font-bold">{metrics?.inHouse || 0}</div>
             <p className="text-xs text-muted-foreground">Currently checked in</p>
           </CardContent>
         </Card>
@@ -107,9 +152,9 @@ export function Dashboard() {
             <Bed className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{occupancyRate}%</div>
+            <div className="text-2xl font-bold">{occupancy.rate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
-              {occupiedRooms} of {totalRooms} rooms occupied
+              {occupancy.occupiedRooms} of {occupancy.totalRooms} rooms occupied
             </p>
           </CardContent>
         </Card>
@@ -133,14 +178,14 @@ export function Dashboard() {
                   className="flex items-center justify-between rounded-lg border p-3 text-sm"
                 >
                   <div>
-                    <div className="font-semibold">{arrival.guestName}</div>
+                    <div className="font-semibold">{arrival.user?.name || 'Guest'}</div>
                     <div className="text-muted-foreground">
-                      Room {arrival.roomNumber} · {arrival.roomType} · Check-in: {arrival.checkIn}
+                      Room {arrival.room?.id || 'N/A'} · {arrival.room?.type || 'N/A'} · Check-in: {arrival.check_in}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className="capitalize">
-                      {arrival.status}
+                      {arrival.status.replace('_', ' ')}
                     </Badge>
                     <Button asChild size="sm" variant="outline">
                       <Link to={`/receptionist/reservations?action=checkin&id=${arrival.id}`}>
@@ -174,9 +219,9 @@ export function Dashboard() {
                   className="flex items-center justify-between rounded-lg border p-3 text-sm"
                 >
                   <div>
-                    <div className="font-semibold">{departure.guestName}</div>
+                    <div className="font-semibold">{departure.user?.name || 'Guest'}</div>
                     <div className="text-muted-foreground">
-                      Room {departure.roomNumber} · Check-out: {departure.checkOut}
+                      Room {departure.room?.id || 'N/A'} · Check-out: {departure.check_out}
                     </div>
                   </div>
                   <Button asChild size="sm" variant="outline">
@@ -206,21 +251,14 @@ export function Dashboard() {
                 <Bed className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">Available</span>
               </div>
-              <Badge variant="default">{availableRooms}</Badge>
+              <Badge variant="default">{occupancy.availableRooms}</Badge>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">Occupied</span>
               </div>
-              <Badge variant="secondary">{occupiedRooms}</Badge>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">Maintenance</span>
-              </div>
-              <Badge variant="outline">{maintenanceRooms}</Badge>
+              <Badge variant="secondary">{occupancy.occupiedRooms}</Badge>
             </div>
             <Button variant="outline" asChild size="sm" className="w-full mt-4">
               <Link to="/receptionist/rooms">Manage Rooms</Link>
@@ -239,14 +277,14 @@ export function Dashboard() {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">Pending</span>
               </div>
-              <Badge variant="outline">{pendingReservations}</Badge>
+              <Badge variant="outline">{pendingCount}</Badge>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">Confirmed</span>
               </div>
-              <Badge variant="default">{confirmedReservations}</Badge>
+              <Badge variant="default">{confirmedCount}</Badge>
             </div>
             <Button variant="outline" asChild size="sm" className="w-full mt-4">
               <Link to="/receptionist/reservations">View All Reservations</Link>

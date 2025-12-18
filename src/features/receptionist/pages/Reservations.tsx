@@ -16,11 +16,23 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { mockReservations, mockRooms, getAvailableRooms, type MockReservation } from '../mockData';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  getReservations,
+  createWalkInReservation,
+  confirmReservation,
+  cancelReservation,
+  checkInReservation,
+  checkOutReservation,
+  getRooms,
+  type ReceptionistReservation,
+} from '../api/receptionistApi';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
 
-const statusLabels: Record<MockReservation['status'], string> = {
+type ReservationStatus = 'pending' | 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled';
+
+const statusLabels: Record<ReservationStatus, string> = {
   pending: 'Pending',
   confirmed: 'Confirmed',
   checked_in: 'Checked In',
@@ -31,10 +43,13 @@ const statusLabels: Record<MockReservation['status'], string> = {
 export function Reservations() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState<MockReservation['status'] | 'all'>('all');
+  const [status, setStatus] = useState<ReservationStatus | 'all'>('all');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [reservations, setReservations] = useState<MockReservation[]>(mockReservations);
-  const [selectedReservation, setSelectedReservation] = useState<MockReservation | null>(null);
+  const [reservations, setReservations] = useState<ReceptionistReservation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedReservation, setSelectedReservation] = useState<ReceptionistReservation | null>(null);
+  const [availableRooms, setAvailableRooms] = useState<any[]>([]);
+  const [allRooms, setAllRooms] = useState<any[]>([]);
   
   // Dialog states
   const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
@@ -63,6 +78,43 @@ export function Reservations() {
     specialRequests: '',
   });
 
+  // Load reservations and rooms
+  useEffect(() => {
+    loadReservations();
+    loadRooms();
+  }, [search, status, dateRange]);
+
+  const loadReservations = async () => {
+    try {
+      setLoading(true);
+      const params: any = {
+        per_page: 100,
+      };
+      if (search) params.search = search;
+      if (status !== 'all') params.status = status;
+      if (dateRange.start) params.date_from = dateRange.start;
+      if (dateRange.end) params.date_to = dateRange.end;
+      const response = await getReservations(params);
+      setReservations(response.data || []);
+    } catch (error: any) {
+      console.error('Failed to load reservations:', error);
+      toast.error(error.response?.data?.message || 'Failed to load reservations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRooms = async () => {
+    try {
+      const response = await getRooms({ per_page: 100 });
+      const rooms = response.data || [];
+      setAllRooms(rooms);
+      setAvailableRooms(rooms.filter((r: any) => r.status === 'available'));
+    } catch (error: any) {
+      console.error('Failed to load rooms:', error);
+    }
+  };
+
   // Check URL params for actions
   useEffect(() => {
     const action = searchParams.get('action');
@@ -88,145 +140,112 @@ export function Reservations() {
     }
   }, [searchParams, reservations, setSearchParams]);
 
-  // Filter reservations
-  const filteredReservations = useMemo(() => {
-    return reservations.filter((r) => {
-      const matchesSearch =
-        !search ||
-        r.guestName.toLowerCase().includes(search.toLowerCase()) ||
-        r.id.toString().includes(search) ||
-        r.roomNumber.includes(search);
-      
-      const matchesStatus = status === 'all' || r.status === status;
-      
-      const matchesDateRange =
-        (!dateRange.start || r.checkIn >= dateRange.start) &&
-        (!dateRange.end || r.checkIn <= dateRange.end);
-      
-      return matchesSearch && matchesStatus && matchesDateRange;
-    });
-  }, [reservations, search, status, dateRange]);
-
-  const handleConfirmReservation = () => {
+  const handleConfirmReservation = async () => {
     if (!selectedReservation) return;
-    setReservations((prev) =>
-      prev.map((r) =>
-        r.id === selectedReservation.id ? { ...r, status: 'confirmed' as const } : r
-      )
-    );
-    toast.success('Reservation confirmed');
-    setConfirmDialogOpen(false);
-    setSelectedReservation(null);
-  };
-
-  const handleCancelReservation = () => {
-    if (!selectedReservation) return;
-    setReservations((prev) =>
-      prev.map((r) =>
-        r.id === selectedReservation.id ? { ...r, status: 'cancelled' as const } : r
-      )
-    );
-    toast.success('Reservation cancelled');
-    setCancelDialogOpen(false);
-    setSelectedReservation(null);
-  };
-
-  const handleCheckIn = () => {
-    if (!selectedReservation) return;
-    setReservations((prev) =>
-      prev.map((r) =>
-        r.id === selectedReservation.id ? { ...r, status: 'checked_in' as const } : r
-      )
-    );
-    // Update room status
-    const room = mockRooms.find((rm) => rm.number === selectedReservation.roomNumber);
-    if (room) {
-      // In a real app, this would update the room status via API
-      toast.success(`Guest checked in to room ${selectedReservation.roomNumber}`);
+    try {
+      await confirmReservation(selectedReservation.id);
+      toast.success('Reservation confirmed');
+      setConfirmDialogOpen(false);
+      setSelectedReservation(null);
+      await loadReservations();
+    } catch (error: any) {
+      console.error('Failed to confirm reservation:', error);
+      toast.error(error.response?.data?.message || 'Failed to confirm reservation');
     }
-    setCheckInDialogOpen(false);
-    setSelectedReservation(null);
   };
 
-  const handleCheckOut = () => {
+  const handleCancelReservation = async () => {
     if (!selectedReservation) return;
-    setReservations((prev) =>
-      prev.map((r) =>
-        r.id === selectedReservation.id ? { ...r, status: 'checked_out' as const } : r
-      )
-    );
-    // Update room status
-    const room = mockRooms.find((rm) => rm.number === selectedReservation.roomNumber);
-    if (room) {
-      // In a real app, this would update the room status via API
-      toast.success(`Guest checked out from room ${selectedReservation.roomNumber}`);
+    try {
+      await cancelReservation(selectedReservation.id);
+      toast.success('Reservation cancelled');
+      setCancelDialogOpen(false);
+      setSelectedReservation(null);
+      await loadReservations();
+    } catch (error: any) {
+      console.error('Failed to cancel reservation:', error);
+      toast.error(error.response?.data?.message || 'Failed to cancel reservation');
     }
-    setCheckOutDialogOpen(false);
-    setSelectedReservation(null);
   };
 
-  const handleSaveWalkIn = () => {
+  const handleCheckIn = async () => {
+    if (!selectedReservation) return;
+    try {
+      await checkInReservation(selectedReservation.id);
+      toast.success(`Guest checked in successfully`);
+      setCheckInDialogOpen(false);
+      setSelectedReservation(null);
+      await loadReservations();
+      await loadRooms(); // Refresh room status
+    } catch (error: any) {
+      console.error('Failed to check in:', error);
+      toast.error(error.response?.data?.message || 'Failed to check in guest');
+    }
+  };
+
+  const handleCheckOut = async () => {
+    if (!selectedReservation) return;
+    try {
+      await checkOutReservation(selectedReservation.id);
+      toast.success(`Guest checked out successfully`);
+      setCheckOutDialogOpen(false);
+      setSelectedReservation(null);
+      await loadReservations();
+      await loadRooms(); // Refresh room status
+    } catch (error: any) {
+      console.error('Failed to check out:', error);
+      toast.error(error.response?.data?.message || 'Failed to check out guest');
+    }
+  };
+
+  const handleSaveWalkIn = async () => {
     if (!walkInForm.guestName || !walkInForm.roomNumber || !walkInForm.checkOut) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    const newReservation: MockReservation = {
-      id: Math.max(...reservations.map((r) => r.id)) + 1,
-      guestName: walkInForm.guestName,
-      guestEmail: walkInForm.guestEmail,
-      guestPhone: walkInForm.guestPhone,
-      roomNumber: walkInForm.roomNumber,
-      roomType: mockRooms.find((r) => r.number === walkInForm.roomNumber)?.type || 'Standard',
-      checkIn: walkInForm.checkIn,
-      checkOut: walkInForm.checkOut,
-      status: 'confirmed',
-      amount: mockRooms.find((r) => r.number === walkInForm.roomNumber)?.price || 0,
-      channel: 'walk-in',
-      createdAt: new Date().toISOString(),
-      specialRequests: walkInForm.specialRequests,
-    };
-
-    setReservations((prev) => [...prev, newReservation]);
-    toast.success('Walk-in reservation created');
-    setWalkInDialogOpen(false);
-    setWalkInForm({
-      guestName: '',
-      guestEmail: '',
-      guestPhone: '',
-      roomNumber: '',
-      checkIn: new Date().toISOString().split('T')[0],
-      checkOut: '',
-      specialRequests: '',
-    });
+    try {
+      await createWalkInReservation({
+        guestName: walkInForm.guestName,
+        guestEmail: walkInForm.guestEmail || undefined,
+        guestPhone: walkInForm.guestPhone || undefined,
+        roomNumber: parseInt(walkInForm.roomNumber),
+        checkIn: walkInForm.checkIn,
+        checkOut: walkInForm.checkOut,
+        specialRequests: walkInForm.specialRequests || undefined,
+      });
+      toast.success('Walk-in reservation created');
+      setWalkInDialogOpen(false);
+      setWalkInForm({
+        guestName: '',
+        guestEmail: '',
+        guestPhone: '',
+        roomNumber: '',
+        checkIn: new Date().toISOString().split('T')[0],
+        checkOut: '',
+        specialRequests: '',
+      });
+      await loadReservations();
+      await loadRooms(); // Refresh available rooms
+    } catch (error: any) {
+      console.error('Failed to create walk-in reservation:', error);
+      toast.error(error.response?.data?.message || 'Failed to create walk-in reservation');
+    }
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!selectedReservation) return;
     if (!editForm.roomNumber || !editForm.checkIn || !editForm.checkOut) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    setReservations((prev) =>
-      prev.map((r) =>
-        r.id === selectedReservation.id
-          ? {
-              ...r,
-              roomNumber: editForm.roomNumber,
-              checkIn: editForm.checkIn,
-              checkOut: editForm.checkOut,
-              specialRequests: editForm.specialRequests,
-            }
-          : r
-      )
-    );
-    toast.success('Reservation updated');
+    // Note: Edit functionality might need a separate API endpoint
+    // For now, we'll show a message that this needs to be implemented
+    toast.error('Edit reservation functionality requires backend API endpoint');
     setEditDialogOpen(false);
     setSelectedReservation(null);
   };
-
-  const availableRooms = getAvailableRooms();
 
   return (
     <div className="space-y-6">
@@ -299,49 +318,54 @@ export function Reservations() {
         <CardHeader>
           <CardTitle>Reservation List</CardTitle>
           <CardDescription>
-            {filteredReservations.length} reservation{filteredReservations.length !== 1 ? 's' : ''} found
+            {loading ? 'Loading...' : `${reservations.length} reservation${reservations.length !== 1 ? 's' : ''} found`}
           </CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Guest</TableHead>
-                <TableHead>Room</TableHead>
-                <TableHead>Dates</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Channel</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredReservations.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>#{r.id}</TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-semibold">{r.guestName}</div>
-                      <div className="text-xs text-muted-foreground">{r.guestEmail}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {r.roomNumber} · {r.roomType}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <CalendarRange className="h-4 w-4" />
-                      {r.checkIn} → {r.checkOut}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="capitalize">
-                      {statusLabels[r.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="capitalize">{r.channel}</TableCell>
-                  <TableCell>${r.amount?.toLocaleString() || '0'}</TableCell>
+          {loading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Guest</TableHead>
+                  <TableHead>Room</TableHead>
+                  <TableHead>Dates</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {reservations.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>#{r.id}</TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-semibold">{r.user?.name || 'Guest'}</div>
+                        <div className="text-xs text-muted-foreground">{r.user?.email || ''}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {r.room?.id || 'N/A'} · {r.room?.type || 'N/A'}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <CalendarRange className="h-4 w-4" />
+                        {r.check_in} → {r.check_out}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="capitalize">
+                        {statusLabels[r.status as ReservationStatus] || r.status.replace('_', ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>${r.room?.price?.toLocaleString() || '0'}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {r.status === 'pending' && (
@@ -390,10 +414,10 @@ export function Reservations() {
                           onClick={() => {
                             setSelectedReservation(r);
                             setEditForm({
-                              roomNumber: r.roomNumber,
-                              checkIn: r.checkIn,
-                              checkOut: r.checkOut,
-                              specialRequests: r.specialRequests || '',
+                              roomNumber: r.room_id?.toString() || '',
+                              checkIn: r.check_in,
+                              checkOut: r.check_out,
+                              specialRequests: r.special_requests || '',
                             });
                             setEditDialogOpen(true);
                           }}
@@ -417,15 +441,16 @@ export function Reservations() {
                   </TableCell>
                 </TableRow>
               ))}
-              {filteredReservations.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground">
-                    No reservations match your filters.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
+                {reservations.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      No reservations found.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -476,8 +501,8 @@ export function Reservations() {
                 </SelectTrigger>
                 <SelectContent>
                   {availableRooms.map((room) => (
-                    <SelectItem key={room.id} value={room.number}>
-                      {room.number} - {room.type} (${room.price}/night)
+                    <SelectItem key={room.id} value={room.id.toString()}>
+                      {room.number || `#${room.id}`} - {room.type} (${room.price}/night)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -535,18 +560,18 @@ export function Reservations() {
             <div className="space-y-4 py-4">
               <div className="grid gap-2">
                 <div className="text-sm font-medium">Guest:</div>
-                <div className="text-sm text-muted-foreground">{selectedReservation.guestName}</div>
+                <div className="text-sm text-muted-foreground">{selectedReservation.user?.name || 'Guest'}</div>
               </div>
               <div className="grid gap-2">
                 <div className="text-sm font-medium">Room:</div>
                 <div className="text-sm text-muted-foreground">
-                  {selectedReservation.roomNumber} - {selectedReservation.roomType}
+                  {selectedReservation.room?.id || 'N/A'} - {selectedReservation.room?.type || 'N/A'}
                 </div>
               </div>
               <div className="grid gap-2">
                 <div className="text-sm font-medium">Dates:</div>
                 <div className="text-sm text-muted-foreground">
-                  {selectedReservation.checkIn} to {selectedReservation.checkOut}
+                  {selectedReservation.check_in} to {selectedReservation.check_out}
                 </div>
               </div>
             </div>
@@ -566,24 +591,24 @@ export function Reservations() {
           <DialogHeader>
             <DialogTitle>Check Out Guest</DialogTitle>
             <DialogDescription>
-              Complete check-out for {selectedReservation?.guestName}
+              Complete check-out for {selectedReservation?.user?.name || 'Guest'}
             </DialogDescription>
           </DialogHeader>
           {selectedReservation && (
             <div className="space-y-4 py-4">
               <div className="grid gap-2">
                 <div className="text-sm font-medium">Guest:</div>
-                <div className="text-sm text-muted-foreground">{selectedReservation.guestName}</div>
+                <div className="text-sm text-muted-foreground">{selectedReservation.user?.name || 'Guest'}</div>
               </div>
               <div className="grid gap-2">
                 <div className="text-sm font-medium">Room:</div>
                 <div className="text-sm text-muted-foreground">
-                  {selectedReservation.roomNumber} - {selectedReservation.roomType}
+                  {selectedReservation.room?.id || 'N/A'} - {selectedReservation.room?.type || 'N/A'}
                 </div>
               </div>
               <div className="grid gap-2">
                 <div className="text-sm font-medium">Total Amount:</div>
-                <div className="text-sm font-semibold">${selectedReservation.amount}</div>
+                <div className="text-sm font-semibold">${selectedReservation.room?.price || '0'}</div>
               </div>
             </div>
           )}
@@ -614,9 +639,9 @@ export function Reservations() {
                   <SelectValue placeholder="Select room" />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockRooms.map((room) => (
-                    <SelectItem key={room.id} value={room.number}>
-                      {room.number} - {room.type} (${room.price}/night)
+                  {allRooms.map((room) => (
+                    <SelectItem key={room.id} value={room.id.toString()}>
+                      {room.number || `#${room.id}`} - {room.type} (${room.price}/night)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -709,13 +734,13 @@ export function Reservations() {
           {selectedReservation && (
             <div className="space-y-2 py-4">
               <div className="text-sm">
-                <strong>Guest:</strong> {selectedReservation.guestName}
+                <strong>Guest:</strong> {selectedReservation.user?.name || 'Guest'}
               </div>
               <div className="text-sm">
-                <strong>Room:</strong> {selectedReservation.roomNumber} - {selectedReservation.roomType}
+                <strong>Room:</strong> {selectedReservation.room?.id || 'N/A'} - {selectedReservation.room?.type || 'N/A'}
               </div>
               <div className="text-sm">
-                <strong>Dates:</strong> {selectedReservation.checkIn} to {selectedReservation.checkOut}
+                <strong>Dates:</strong> {selectedReservation.check_in} to {selectedReservation.check_out}
               </div>
             </div>
           )}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Bed, Wrench, XCircle, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Dialog,
   DialogContent,
@@ -15,17 +16,19 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { mockRooms, type MockRoom } from '../mockData';
+import { getRooms, updateRoomStatus, type ReceptionistRoom } from '../api/receptionistApi';
 import { toast } from 'sonner';
 
-const statusLabels: Record<MockRoom['status'], string> = {
+type RoomStatus = 'available' | 'occupied' | 'maintenance' | 'unavailable';
+
+const statusLabels: Record<RoomStatus, string> = {
   available: 'Available',
   occupied: 'Occupied',
   maintenance: 'Under Maintenance',
   unavailable: 'Unavailable',
 };
 
-const statusColors: Record<MockRoom['status'], 'default' | 'secondary' | 'outline' | 'destructive'> = {
+const statusColors: Record<RoomStatus, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   available: 'default',
   occupied: 'secondary',
   maintenance: 'outline',
@@ -33,22 +36,56 @@ const statusColors: Record<MockRoom['status'], 'default' | 'secondary' | 'outlin
 };
 
 export function Rooms() {
-  const [rooms, setRooms] = useState<MockRoom[]>(mockRooms);
+  const [rooms, setRooms] = useState<ReceptionistRoom[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<MockRoom['status'] | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<RoomStatus | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
-  const [roomToUpdateStatus, setRoomToUpdateStatus] = useState<MockRoom | null>(null);
-  const [newStatus, setNewStatus] = useState<MockRoom['status']>('available');
+  const [roomToUpdateStatus, setRoomToUpdateStatus] = useState<ReceptionistRoom | null>(null);
+  const [newStatus, setNewStatus] = useState<RoomStatus>('available');
+  const [updating, setUpdating] = useState(false);
+
+  useEffect(() => {
+    loadRooms();
+  }, []);
+
+  const loadRooms = async () => {
+    try {
+      setLoading(true);
+      const params: any = {
+        per_page: 100,
+      };
+      if (search) params.search = search;
+      if (typeFilter !== 'all') params.type = typeFilter;
+      if (statusFilter !== 'all') {
+        params.isAvailable = statusFilter === 'available';
+      }
+      const response = await getRooms(params);
+      setRooms(response.data || []);
+    } catch (error: any) {
+      console.error('Failed to load rooms:', error);
+      toast.error(error.response?.data?.message || 'Failed to load rooms');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      loadRooms();
+    }, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [search, typeFilter, statusFilter]);
 
   const roomTypes = Array.from(new Set(rooms.map((r) => r.type)));
 
   const filteredRooms = rooms.filter((room) => {
     const matchesSearch =
       !search ||
-      room.number.toLowerCase().includes(search.toLowerCase()) ||
+      room.number?.toLowerCase().includes(search.toLowerCase()) ||
       room.type.toLowerCase().includes(search.toLowerCase()) ||
-      room.description.toLowerCase().includes(search.toLowerCase());
+      room.description?.toLowerCase().includes(search.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || room.status === statusFilter;
     const matchesType = typeFilter === 'all' || room.type === typeFilter;
@@ -56,20 +93,28 @@ export function Rooms() {
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  const handleUpdateStatus = (room: MockRoom) => {
+  const handleUpdateStatus = (room: ReceptionistRoom) => {
     setRoomToUpdateStatus(room);
     setNewStatus(room.status);
     setStatusDialogOpen(true);
   };
 
-  const handleSaveStatus = () => {
+  const handleSaveStatus = async () => {
     if (!roomToUpdateStatus) return;
-    setRooms((prev) =>
-      prev.map((r) => (r.id === roomToUpdateStatus.id ? { ...r, status: newStatus } : r))
-    );
-    toast.success(`Room ${roomToUpdateStatus.number} status updated to ${statusLabels[newStatus]}`);
-    setStatusDialogOpen(false);
-    setRoomToUpdateStatus(null);
+    try {
+      setUpdating(true);
+      await updateRoomStatus(roomToUpdateStatus.id, { status: newStatus });
+      toast.success(`Room ${roomToUpdateStatus.number} status updated to ${statusLabels[newStatus]}`);
+      setStatusDialogOpen(false);
+      setRoomToUpdateStatus(null);
+      // Reload rooms to get updated status
+      await loadRooms();
+    } catch (error: any) {
+      console.error('Failed to update room status:', error);
+      toast.error(error.response?.data?.message || 'Failed to update room status');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   return (
@@ -138,63 +183,71 @@ export function Rooms() {
         <CardHeader>
           <CardTitle>Room Inventory</CardTitle>
           <CardDescription>
-            {filteredRooms.length} room{filteredRooms.length !== 1 ? 's' : ''} found
+            {loading ? 'Loading...' : `${filteredRooms.length} room${filteredRooms.length !== 1 ? 's' : ''} found`}
           </CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Room Number</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Capacity</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRooms.map((room) => (
-                <TableRow key={room.id}>
-                  <TableCell className="font-semibold">{room.number}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{room.type}</Badge>
-                  </TableCell>
-                  <TableCell>${room.price.toLocaleString()}</TableCell>
-                  <TableCell>{room.capacity} guest{room.capacity !== 1 ? 's' : ''}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusColors[room.status]}>
-                      {statusLabels[room.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
-                    {room.description}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleUpdateStatus(room)}
-                    >
-                      {room.status === 'available' && <CheckCircle className="h-3 w-3 mr-1" />}
-                      {room.status === 'occupied' && <Bed className="h-3 w-3 mr-1" />}
-                      {room.status === 'maintenance' && <Wrench className="h-3 w-3 mr-1" />}
-                      {room.status === 'unavailable' && <XCircle className="h-3 w-3 mr-1" />}
-                      Update Status
-                    </Button>
-                  </TableCell>
-                </TableRow>
+          {loading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
-              {filteredRooms.length === 0 && (
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
-                    No rooms match your filters.
-                  </TableCell>
+                  <TableHead>Room Number</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Capacity</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredRooms.map((room) => (
+                  <TableRow key={room.id}>
+                    <TableCell className="font-semibold">{room.number || `#${room.id}`}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{room.type}</Badge>
+                    </TableCell>
+                    <TableCell>${room.price.toLocaleString()}</TableCell>
+                    <TableCell>{room.capacity} guest{room.capacity !== 1 ? 's' : ''}</TableCell>
+                    <TableCell>
+                      <Badge variant={statusColors[room.status]}>
+                        {statusLabels[room.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate text-sm text-muted-foreground">
+                      {room.description || 'No description'}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleUpdateStatus(room)}
+                      >
+                        {room.status === 'available' && <CheckCircle className="h-3 w-3 mr-1" />}
+                        {room.status === 'occupied' && <Bed className="h-3 w-3 mr-1" />}
+                        {room.status === 'maintenance' && <Wrench className="h-3 w-3 mr-1" />}
+                        {room.status === 'unavailable' && <XCircle className="h-3 w-3 mr-1" />}
+                        Update Status
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredRooms.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                      No rooms match your filters.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -233,10 +286,12 @@ export function Rooms() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setStatusDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setStatusDialogOpen(false)} disabled={updating}>
               Cancel
             </Button>
-            <Button onClick={handleSaveStatus}>Update Status</Button>
+            <Button onClick={handleSaveStatus} disabled={updating}>
+              {updating ? 'Updating...' : 'Update Status'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
