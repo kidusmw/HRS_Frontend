@@ -4,14 +4,12 @@ import {
   CalendarRange,
   Bed,
   FileText,
-  LogIn,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { title: 'Dashboard', href: '/receptionist/dashboard', icon: LayoutDashboard },
   { title: 'Reservations', href: '/receptionist/reservations', icon: CalendarRange },
-  { title: 'Check-in/Check-out', href: '/receptionist/reservations?tab=checkin', icon: LogIn },
   { title: 'Rooms', href: '/receptionist/rooms', icon: Bed },
   { title: 'Reports', href: '/receptionist/reports', icon: FileText },
 ];
