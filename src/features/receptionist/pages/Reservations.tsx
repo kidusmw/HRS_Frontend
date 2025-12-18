@@ -50,6 +50,7 @@ export function Reservations() {
   const [selectedReservation, setSelectedReservation] = useState<ReceptionistReservation | null>(null);
   const [availableRooms, setAvailableRooms] = useState<any[]>([]);
   const [allRooms, setAllRooms] = useState<any[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(false);
   
   // Dialog states
   const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
@@ -64,6 +65,7 @@ export function Reservations() {
     guestName: '',
     guestEmail: '',
     guestPhone: '',
+    roomType: '',
     roomNumber: '',
     checkIn: new Date().toISOString().split('T')[0],
     checkOut: '',
@@ -105,15 +107,40 @@ export function Reservations() {
   };
 
   const loadRooms = async () => {
+    console.log('[Reservations] loadRooms called');
     try {
+      setRoomsLoading(true);
+      console.log('[Reservations] Fetching rooms from API...');
       const response = await getRooms({ per_page: 100 });
+      console.log('[Reservations] Rooms API response:', response);
       const rooms = response.data || [];
+      console.log('[Reservations] Rooms data:', rooms);
       setAllRooms(rooms);
-      setAvailableRooms(rooms.filter((r: any) => r.status === 'available'));
+      const available = rooms.filter((r: any) => r && r.status === 'available');
+      console.log('[Reservations] Available rooms:', available);
+      setAvailableRooms(available);
     } catch (error: any) {
-      console.error('Failed to load rooms:', error);
+      console.error('[Reservations] Failed to load rooms:', error);
+      console.error('[Reservations] Error details:', error.response?.data || error.message);
+      setAvailableRooms([]);
+      setAllRooms([]);
+    } finally {
+      setRoomsLoading(false);
+      console.log('[Reservations] loadRooms completed, roomsLoading set to false');
     }
   };
+
+  // Load rooms when dialog opens to ensure fresh data
+  useEffect(() => {
+    console.log('[Reservations] walkInDialogOpen changed:', walkInDialogOpen);
+    if (walkInDialogOpen) {
+      console.log('[Reservations] Dialog opened, loading rooms...');
+      loadRooms().catch((error) => {
+        console.error('[Reservations] Error loading rooms for walk-in dialog:', error);
+        toast.error('Failed to load rooms');
+      });
+    }
+  }, [walkInDialogOpen]);
 
   // Check URL params for actions
   useEffect(() => {
@@ -220,6 +247,7 @@ export function Reservations() {
         guestName: '',
         guestEmail: '',
         guestPhone: '',
+        roomType: '',
         roomNumber: '',
         checkIn: new Date().toISOString().split('T')[0],
         checkOut: '',
@@ -256,7 +284,14 @@ export function Reservations() {
             Manage reservations, check-ins, and check-outs
           </p>
         </div>
-        <Button onClick={() => setWalkInDialogOpen(true)}>
+        <Button
+          onClick={() => {
+            console.log('[Reservations] Walk-in booking button clicked');
+            console.log('[Reservations] Current availableRooms:', availableRooms);
+            console.log('[Reservations] Current roomsLoading:', roomsLoading);
+            setWalkInDialogOpen(true);
+          }}
+        >
           <Plus className="mr-2 h-4 w-4" />
           Walk-in Booking
         </Button>
@@ -461,7 +496,15 @@ export function Reservations() {
             <DialogTitle>Walk-in Booking</DialogTitle>
             <DialogDescription>Create a new reservation for a walk-in guest</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          {(() => {
+            console.log('[Reservations] Dialog rendering - roomsLoading:', roomsLoading);
+            console.log('[Reservations] Dialog rendering - availableRooms:', availableRooms);
+            console.log('[Reservations] Dialog rendering - availableRooms type:', typeof availableRooms);
+            console.log('[Reservations] Dialog rendering - availableRooms isArray:', Array.isArray(availableRooms));
+            return roomsLoading ? (
+              <div className="py-8 text-center text-muted-foreground">Loading rooms...</div>
+            ) : (
+              <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="walkin-name">Guest Name *</Label>
               <Input
@@ -490,23 +533,84 @@ export function Reservations() {
                 placeholder="Enter phone number"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="walkin-room">Room Number *</Label>
-              <Select
-                value={walkInForm.roomNumber}
-                onValueChange={(v) => setWalkInForm((prev) => ({ ...prev, roomNumber: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select room" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableRooms.map((room) => (
-                    <SelectItem key={room.id} value={room.id.toString()}>
-                      {room.number || `#${room.id}`} - {room.type} (${room.price}/night)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="walkin-room-type">Room Type</Label>
+                <Select
+                  value={walkInForm.roomType || 'all'}
+                  onValueChange={(v) => {
+                    setWalkInForm((prev) => ({ ...prev, roomType: v === 'all' ? '' : v, roomNumber: '' }));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    {availableRooms && Array.isArray(availableRooms) && availableRooms.length > 0
+                      ? Array.from(new Set(availableRooms.map((r) => r?.type).filter(Boolean))).map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
+                          </SelectItem>
+                        ))
+                      : null}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="walkin-room">Room Number *</Label>
+                <Select
+                  value={walkInForm.roomNumber}
+                  onValueChange={(v) => setWalkInForm((prev) => ({ ...prev, roomNumber: v }))}
+                  disabled={!availableRooms || availableRooms.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select room" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(() => {
+                      console.log('[Reservations] Room number selector - availableRooms:', availableRooms);
+                      console.log('[Reservations] Room number selector - roomType filter:', walkInForm.roomType);
+                      if (!availableRooms || !Array.isArray(availableRooms) || availableRooms.length === 0) {
+                        console.log('[Reservations] No available rooms for room number selector');
+                        return (
+                          <SelectItem value="no-rooms" disabled>
+                            No available rooms
+                          </SelectItem>
+                        );
+                      }
+                      try {
+                        const filtered = availableRooms.filter(
+                          (room) => room && (!walkInForm.roomType || room.type === walkInForm.roomType)
+                        );
+                        console.log('[Reservations] Filtered rooms:', filtered);
+                        if (filtered.length === 0) {
+                          return (
+                            <SelectItem value="no-rooms-filtered" disabled>
+                              No rooms of selected type
+                            </SelectItem>
+                          );
+                        }
+                        return filtered.map((room) => {
+                          console.log('[Reservations] Rendering room option:', room);
+                          return (
+                            <SelectItem key={room.id} value={room.id.toString()}>
+                              {room.number ? `Room ${room.number}` : `Room ${room.id}`} - {room.type || 'N/A'} (${room.price?.toLocaleString() || '0'}/night)
+                            </SelectItem>
+                          );
+                        });
+                      } catch (error) {
+                        console.error('[Reservations] Error in room number selector:', error);
+                        return (
+                          <SelectItem value="error" disabled>
+                            Error loading rooms
+                          </SelectItem>
+                        );
+                      }
+                    })()}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -538,11 +642,15 @@ export function Reservations() {
               />
             </div>
           </div>
+            );
+          })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setWalkInDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveWalkIn}>Create Reservation</Button>
+            <Button onClick={handleSaveWalkIn} disabled={roomsLoading || !availableRooms || availableRooms.length === 0}>
+              Create Reservation
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
