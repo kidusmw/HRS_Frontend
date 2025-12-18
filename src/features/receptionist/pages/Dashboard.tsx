@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getDashboardMetrics, getReservations, type ReceptionistReservation } from '../api/receptionistApi';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -29,20 +30,47 @@ export function Dashboard() {
         setLoading(true);
         const today = new Date().toISOString().split('T')[0];
         
+        console.log('[Dashboard] Loading dashboard data, today:', today);
+        
         // Load dashboard metrics
         const metricsData = await getDashboardMetrics();
+        console.log('[Dashboard] Metrics data:', metricsData);
         setMetrics(metricsData);
 
         // Load today's arrivals
+        // Get reservations with check-in date today and status pending or confirmed
+        // (matching the backend dashboard metrics query)
         const arrivalsData = await getReservations({
           status: 'all',
           date_from: today,
           date_to: today,
-          per_page: 10,
+          per_page: 100,
         });
-        const arrivals = (arrivalsData.data || []).filter(
-          (r) => r.check_in === today && (r.status === 'confirmed' || r.status === 'pending')
-        );
+        console.log('[Dashboard] Arrivals API response:', arrivalsData);
+        console.log('[Dashboard] Arrivals raw data:', arrivalsData.data);
+        
+        // Normalize dates for comparison - extract just the date part
+        // Show arrivals that are checking in today and are pending or confirmed
+        // (matching backend logic: whereIn('status', ['pending', 'confirmed']))
+        const arrivals = (arrivalsData.data || []).filter((r) => {
+          const checkInDate = r.check_in?.split('T')[0] || r.check_in;
+          const isToday = checkInDate === today;
+          const isRelevantStatus = ['pending', 'confirmed'].includes(r.status);
+          const matches = isToday && isRelevantStatus;
+          console.log('[Dashboard] Arrival filter:', {
+            reservationId: r.id,
+            checkIn: r.check_in,
+            normalizedCheckIn: checkInDate,
+            today,
+            status: r.status,
+            isWalkIn: (r as any).is_walk_in ?? (r as any).isWalkIn ?? 'not found',
+            isToday,
+            isRelevantStatus,
+            matches,
+          });
+          return matches;
+        });
+        console.log('[Dashboard] Filtered arrivals:', arrivals);
         setTodayArrivals(arrivals);
 
         // Load today's departures (checked-in guests with check-out today)
@@ -50,20 +78,36 @@ export function Dashboard() {
           status: 'checked_in',
           per_page: 100,
         });
-        const todayStr = today;
-        const departures = (departuresData.data || []).filter(
-          (r) => r.check_out === todayStr && r.status === 'checked_in'
-        );
+        console.log('[Dashboard] Departures API response:', departuresData);
+        console.log('[Dashboard] Departures raw data:', departuresData.data);
+        
+        const departures = (departuresData.data || []).filter((r) => {
+          const checkOutDate = r.check_out?.split('T')[0] || r.check_out;
+          const matches = checkOutDate === today && r.status === 'checked_in';
+          console.log('[Dashboard] Departure filter:', {
+            reservationId: r.id,
+            checkOut: r.check_out,
+            normalizedCheckOut: checkOutDate,
+            today,
+            status: r.status,
+            matches,
+          });
+          return matches;
+        });
+        console.log('[Dashboard] Filtered departures:', departures);
         setTodayDepartures(departures);
 
         // Get pending and confirmed counts
         const allReservations = await getReservations({ status: 'all', per_page: 100 });
+        console.log('[Dashboard] All reservations:', allReservations.data);
         const pending = (allReservations.data || []).filter((r) => r.status === 'pending').length;
         const confirmed = (allReservations.data || []).filter((r) => r.status === 'confirmed').length;
+        console.log('[Dashboard] Pending count:', pending, 'Confirmed count:', confirmed);
         setPendingCount(pending);
         setConfirmedCount(confirmed);
       } catch (error: any) {
-        console.error('Failed to load dashboard data:', error);
+        console.error('[Dashboard] Failed to load dashboard data:', error);
+        console.error('[Dashboard] Error details:', error.response?.data);
         toast.error(error.response?.data?.message || 'Failed to load dashboard data');
       } finally {
         setLoading(false);
@@ -171,29 +215,36 @@ export function Dashboard() {
                 No arrivals scheduled for today
               </p>
             ) : (
-              todayArrivals.map((arrival) => (
-                <div
-                  key={arrival.id}
-                  className="flex items-center justify-between rounded-lg border p-3 text-sm"
-                >
-                  <div>
-                    <div className="font-semibold">{arrival.user?.name || 'Guest'}</div>
-                    <div className="text-muted-foreground">
-                      Room {arrival.room?.id || 'N/A'} · {arrival.room?.type || 'N/A'} · Check-in: {arrival.check_in}
+              todayArrivals.map((arrival) => {
+                const checkInDate = arrival.check_in ? format(new Date(arrival.check_in), 'MMM d, yyyy') : 'N/A';
+                const canCheckIn = arrival.status === 'pending' || arrival.status === 'confirmed';
+                
+                return (
+                  <div
+                    key={arrival.id}
+                    className="flex items-center justify-between rounded-lg border p-3 text-sm"
+                  >
+                    <div className="flex-1">
+                      <div className="font-semibold">{arrival.user?.name || 'Guest'}</div>
+                      <div className="text-muted-foreground">
+                        Room {arrival.room?.id || 'N/A'} · {arrival.room?.type || 'N/A'} · {checkInDate}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="capitalize">
+                        {arrival.status.replace('_', ' ')}
+                      </Badge>
+                      {canCheckIn && (
+                        <Button asChild size="sm" variant="outline">
+                          <Link to={`/receptionist/reservations?action=checkin&id=${arrival.id}`}>
+                            Check In
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="capitalize">
-                      {arrival.status.replace('_', ' ')}
-                    </Badge>
-                    <Button asChild size="sm" variant="outline">
-                      <Link to={`/receptionist/reservations?action=checkin&id=${arrival.id}`}>
-                        Check In
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
             <Button variant="outline" asChild size="sm" className="w-full">
               <Link to="/receptionist/reservations">View All Reservations</Link>
@@ -212,24 +263,28 @@ export function Dashboard() {
                 No departures scheduled for today
               </p>
             ) : (
-              todayDepartures.map((departure) => (
-                <div
-                  key={departure.id}
-                  className="flex items-center justify-between rounded-lg border p-3 text-sm"
-                >
-                  <div>
-                    <div className="font-semibold">{departure.user?.name || 'Guest'}</div>
-                    <div className="text-muted-foreground">
-                      Room {departure.room?.id || 'N/A'} · Check-out: {departure.check_out}
+              todayDepartures.map((departure) => {
+                const checkOutDate = departure.check_out ? format(new Date(departure.check_out), 'MMM d, yyyy') : 'N/A';
+                
+                return (
+                  <div
+                    key={departure.id}
+                    className="flex items-center justify-between rounded-lg border p-3 text-sm"
+                  >
+                    <div className="flex-1">
+                      <div className="font-semibold">{departure.user?.name || 'Guest'}</div>
+                      <div className="text-muted-foreground">
+                        Room {departure.room?.id || 'N/A'} · {departure.room?.type || 'N/A'} · {checkOutDate}
+                      </div>
                     </div>
+                    <Button asChild size="sm" variant="outline">
+                      <Link to={`/receptionist/reservations?action=checkout&id=${departure.id}`}>
+                        Check Out
+                      </Link>
+                    </Button>
                   </div>
-                  <Button asChild size="sm" variant="outline">
-                    <Link to={`/receptionist/reservations?action=checkout&id=${departure.id}`}>
-                      Check Out
-                    </Link>
-                  </Button>
-                </div>
-              ))
+                );
+              })
             )}
             <Button variant="outline" asChild size="sm" className="w-full">
               <Link to="/receptionist/reservations">View All Reservations</Link>

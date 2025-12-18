@@ -103,8 +103,13 @@ export function RoomForm({ room, onSuccess, onCancel }: RoomFormProps) {
         await updateRoom(room.id, roomData);
         toast.success('Room updated successfully');
       } else {
-        await createRoom(roomData);
-        toast.success('Room created successfully');
+        const result = await createRoom(roomData);
+        const roomCount = result.count || 1;
+        toast.success(
+          roomCount === 1
+            ? 'Room created successfully'
+            : `Successfully created ${roomCount} rooms`
+        );
       }
       setShowCapacityConfirm(false);
       setPendingValues(null);

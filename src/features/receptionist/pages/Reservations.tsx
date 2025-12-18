@@ -17,6 +17,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DatePicker } from '@/components/ui/date-picker';
 import {
   getReservations,
   createWalkInReservation,
@@ -331,18 +332,16 @@ export function Reservations() {
             </Select>
           </div>
           <div className="flex gap-2 md:w-1/4">
-            <Input
-              type="date"
-              placeholder="Start date"
+            <DatePicker
               value={dateRange.start}
-              onChange={(e) => setDateRange((prev) => ({ ...prev, start: e.target.value }))}
+              onChange={(value) => setDateRange((prev) => ({ ...prev, start: value }))}
+              placeholder="Start date"
               className="flex-1"
             />
-            <Input
-              type="date"
-              placeholder="End date"
+            <DatePicker
               value={dateRange.end}
-              onChange={(e) => setDateRange((prev) => ({ ...prev, end: e.target.value }))}
+              onChange={(value) => setDateRange((prev) => ({ ...prev, end: value }))}
+              placeholder="End date"
               className="flex-1"
             />
           </div>
@@ -615,20 +614,20 @@ export function Reservations() {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="walkin-checkin">Check-in Date *</Label>
-                <Input
+                <DatePicker
                   id="walkin-checkin"
-                  type="date"
                   value={walkInForm.checkIn}
-                  onChange={(e) => setWalkInForm((prev) => ({ ...prev, checkIn: e.target.value }))}
+                  onChange={(value) => setWalkInForm((prev) => ({ ...prev, checkIn: value }))}
+                  placeholder="Select check-in date"
                 />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="walkin-checkout">Check-out Date *</Label>
-                <Input
+                <DatePicker
                   id="walkin-checkout"
-                  type="date"
                   value={walkInForm.checkOut}
-                  onChange={(e) => setWalkInForm((prev) => ({ ...prev, checkOut: e.target.value }))}
+                  onChange={(value) => setWalkInForm((prev) => ({ ...prev, checkOut: value }))}
+                  placeholder="Select check-out date"
                 />
               </div>
             </div>
@@ -758,20 +757,20 @@ export function Reservations() {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit-checkin">Check-in Date *</Label>
-                <Input
+                <DatePicker
                   id="edit-checkin"
-                  type="date"
                   value={editForm.checkIn}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, checkIn: e.target.value }))}
+                  onChange={(value) => setEditForm((prev) => ({ ...prev, checkIn: value }))}
+                  placeholder="Select check-in date"
                 />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="edit-checkout">Check-out Date *</Label>
-                <Input
+                <DatePicker
                   id="edit-checkout"
-                  type="date"
                   value={editForm.checkOut}
-                  onChange={(e) => setEditForm((prev) => ({ ...prev, checkOut: e.target.value }))}
+                  onChange={(value) => setEditForm((prev) => ({ ...prev, checkOut: value }))}
+                  placeholder="Select check-out date"
                 />
               </div>
             </div>
