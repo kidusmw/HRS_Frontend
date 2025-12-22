@@ -44,6 +44,8 @@ export function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [kpis, setKpis] = useState<{
     occupancyPct: number;
+    occupancyChangeFromLastMonth?: number;
+    occupancyChangeFormatted?: string;
     roomsAvailable: number;
     activeReservationsToday: number;
     upcomingCheckins: number;
@@ -132,8 +134,18 @@ export function Dashboard() {
           title="Occupancy %"
           value={`${kpis?.occupancyPct.toFixed(1)}%`}
           icon={Percent}
-          delta="+2.5% from last month"
-          deltaType="positive"
+          delta={
+            kpis?.occupancyChangeFormatted
+              ? `${kpis.occupancyChangeFormatted}% from last month`
+              : undefined
+          }
+          deltaType={
+            kpis?.occupancyChangeFromLastMonth !== undefined
+              ? kpis.occupancyChangeFromLastMonth >= 0
+                ? 'positive'
+                : 'negative'
+              : 'neutral'
+          }
           tooltip="Current hotel occupancy rate"
         />
         <KpiCard

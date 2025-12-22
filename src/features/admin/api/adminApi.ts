@@ -77,6 +77,8 @@ export const uploadAdminLogo = async (logoFile: File): Promise<{ data: AdminLogo
 export interface AdminDashboardMetrics {
   kpis: {
     occupancyPct: number;
+    occupancyChangeFromLastMonth?: number;
+    occupancyChangeFormatted?: string;
     roomsAvailable: number;
     activeReservationsToday: number;
     upcomingCheckins: number;
