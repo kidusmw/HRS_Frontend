@@ -141,6 +141,7 @@ export interface CreateWalkInReservationParams {
   roomNumber: number; // room ID
   checkIn: string;
   checkOut: string;
+  paymentMethod: 'cash' | 'transfer';
   specialRequests?: string;
 }
 
