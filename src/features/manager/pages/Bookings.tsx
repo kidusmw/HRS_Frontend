@@ -55,8 +55,6 @@ export function Bookings() {
           createdAt: booking.created_at,
         }));
         setBookings(transformed);
-        console.log('transformed', transformed);
-        console.log('response data', response.data);
         setMeta(response.meta);
         setStatusCounts(response.status_counts || null);
         setTotalActive(response.total_active || 0);
