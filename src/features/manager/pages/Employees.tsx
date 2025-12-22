@@ -21,11 +21,6 @@ const attendanceStatusStyles: Record<'present' | 'absent' | 'late' | 'on_leave',
   on_leave: 'bg-blue-100 text-blue-800',
 };
 
-const employeeStatusStyles: Record<'active' | 'inactive', string> = {
-  active: 'bg-emerald-100 text-emerald-800',
-  inactive: 'bg-slate-200 text-slate-700',
-};
-
 const supervisionStyles = {
   under: 'bg-blue-100 text-blue-800',
   other: 'bg-amber-100 text-amber-800',
@@ -189,36 +184,33 @@ export function Employees() {
               ))}
             </div>
           ) : (
-            attendance.map((att) => {
-              const emp = employees.find((e: any) => e.id === att.employeeId);
-            if (!emp) return null;
-            return (
-              <div
-                key={att.id}
-                className="flex items-start justify-between rounded-lg border p-3"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-semibold">{emp.name}</span>
-                    <Badge
-                      variant="secondary"
-                      className={cn('capitalize', employeeStatusStyles[emp.status as 'active' | 'inactive'])}
-                    >
-                      {emp.status}
-                    </Badge>
-                  </div>
-                  <div className="text-muted-foreground">{emp.email}</div>
-                  {att.note && <div className="text-xs text-muted-foreground">{att.note}</div>}
-                </div>
-                <Badge
-                  variant="secondary"
-                  className={cn('capitalize', attendanceStatusStyles[att.status as 'present' | 'absent' | 'late' | 'on_leave'])}
+            attendance.map((att: any) => {
+              // Use user data from attendance record if available, otherwise try to find in employees list
+              const emp = att.user || employees.find((e: any) => e.id === att.employeeId);
+              console.log('emp', emp);
+              console.log('att', att);
+              if (!emp) return null;
+              return (
+                <div
+                  key={att.id}
+                  className="flex items-start justify-between rounded-lg border p-3"
                 >
-                  {att.status.replace('_', ' ')}
-                </Badge>
-              </div>
-            );
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-semibold">{emp.name}</span>
+                    </div>
+                    <div className="text-muted-foreground">{emp.email}</div>
+                    {att.note && <div className="text-xs text-muted-foreground">{att.note}</div>}
+                  </div>
+                  <Badge
+                    variant="secondary"
+                    className={cn('capitalize', attendanceStatusStyles[att.status as 'present' | 'absent' | 'late' | 'on_leave'])}
+                  >
+                    {att.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+              );
             })
           )}
           {!loadingAttendance && attendance.length === 0 && (
