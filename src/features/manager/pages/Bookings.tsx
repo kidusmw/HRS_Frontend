@@ -44,7 +44,7 @@ export function Bookings() {
         const transformed = (response.data || []).map((booking: any) => ({
           id: booking.id,
           guestName: booking.user?.name || 'Guest',
-          roomNumber: booking.room?.number || 'N/A',
+          roomNumber: booking.room?.id.toString() || 'N/A',
           roomType: booking.room?.type || 'N/A',
           checkIn: booking.check_in,
           checkOut: booking.check_out,
@@ -55,6 +55,8 @@ export function Bookings() {
           createdAt: booking.created_at,
         }));
         setBookings(transformed);
+        console.log('transformed', transformed);
+        console.log('response data', response.data);
         setMeta(response.meta);
         setStatusCounts(response.status_counts || null);
         setTotalActive(response.total_active || 0);
