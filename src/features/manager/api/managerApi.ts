@@ -254,6 +254,14 @@ export interface BookingsResponse {
     to: number | null;
     total: number;
   };
+  status_counts?: {
+    pending: number;
+    confirmed: number;
+    checked_in: number;
+    checked_out: number;
+    cancelled: number;
+  };
+  total_active?: number;
 }
 
 export const getBookings = async (params?: GetBookingsParams): Promise<BookingsResponse> => {
