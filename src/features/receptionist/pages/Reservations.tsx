@@ -62,7 +62,17 @@ export function Reservations() {
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 
   // Walk-in form state
-  const [walkInForm, setWalkInForm] = useState({
+  const [walkInForm, setWalkInForm] = useState<{
+    guestName: string;
+    guestEmail: string;
+    guestPhone: string;
+    roomType: string;
+    roomNumber: string;
+    checkIn: string;
+    checkOut: string;
+    paymentMethod: 'cash' | 'transfer';
+    specialRequests: string;
+  }>({
     guestName: '',
     guestEmail: '',
     guestPhone: '',
@@ -70,6 +80,7 @@ export function Reservations() {
     roomNumber: '',
     checkIn: new Date().toISOString().split('T')[0],
     checkOut: '',
+    paymentMethod: 'cash',
     specialRequests: '',
   });
 
@@ -240,6 +251,7 @@ export function Reservations() {
         roomNumber: parseInt(walkInForm.roomNumber),
         checkIn: walkInForm.checkIn,
         checkOut: walkInForm.checkOut,
+        paymentMethod: walkInForm.paymentMethod,
         specialRequests: walkInForm.specialRequests || undefined,
       });
       toast.success('Walk-in reservation created');
@@ -252,6 +264,7 @@ export function Reservations() {
         roomNumber: '',
         checkIn: new Date().toISOString().split('T')[0],
         checkOut: '',
+        paymentMethod: 'cash',
         specialRequests: '',
       });
       await loadReservations();
@@ -630,6 +643,21 @@ export function Reservations() {
                   placeholder="Select check-out date"
                 />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="walkin-payment">Payment Method *</Label>
+              <Select
+                value={walkInForm.paymentMethod}
+                onValueChange={(v) => setWalkInForm((prev) => ({ ...prev, paymentMethod: v as 'cash' | 'transfer' }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payment method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="transfer">Transfer</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="walkin-requests">Special Requests</Label>
