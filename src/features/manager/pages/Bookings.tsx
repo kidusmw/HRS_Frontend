@@ -50,7 +50,8 @@ export function Bookings() {
           checkOut: booking.check_out,
           status: booking.status,
           amount: booking.total_amount || booking.room?.price || 0,
-          channel: booking.source || 'web',
+          // Map is_walk_in to channel: walk-in bookings show as 'walk-in', others as 'web'
+          channel: booking.is_walk_in ? 'walk-in' : (booking.source || 'web'),
           createdAt: booking.created_at,
         }));
         setBookings(transformed);
