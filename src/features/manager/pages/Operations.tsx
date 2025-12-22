@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getOverrides, createOverride } from '@/features/manager/api/managerApi';
+import { getActivities, createOverride, type ReceptionistActivity } from '@/features/manager/api/managerApi';
 import { toast } from 'sonner';
 
 export function Operations() {
@@ -19,7 +19,7 @@ export function Operations() {
   const [activitySearch, setActivitySearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [activityLoading, setActivityLoading] = useState(true);
-  const [activities, setActivities] = useState<any[]>([]);
+  const [activities, setActivities] = useState<ReceptionistActivity[]>([]);
   const [activityMeta, setActivityMeta] = useState<any>(null);
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export function Operations() {
             params.booking_id = bookingId;
           }
         }
-        const response = await getOverrides(params);
+        const response = await getActivities(params);
         setActivities(response.data || []);
         setActivityMeta(response.meta);
       } catch (error: any) {
@@ -71,7 +71,7 @@ export function Operations() {
       setOverrideStatus('confirmed');
       setOverrideNote('');
       // Reload activities
-      const response = await getOverrides({ page: 1, per_page: 6 });
+      const response = await getActivities({ page: 1, per_page: 6 });
       setActivities(response.data || []);
       setActivityMeta(response.meta);
     } catch (error: any) {
@@ -147,34 +147,47 @@ export function Operations() {
               </div>
             ) : (
               <>
-                {activities.map((op) => (
+                {activities.map((activity) => (
                   <div
-                    key={op.id}
+                    key={activity.id}
                     className="flex items-start justify-between rounded-lg border p-3 text-sm"
                   >
-                    <div className="space-y-1">
+                    <div className="space-y-1 flex-1">
                       <div className="flex items-center gap-2">
                         <Activity className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-semibold">Override</span>
+                        <span className="font-semibold">{activity.description}</span>
                       </div>
-                      <div className="text-muted-foreground">
-                        Booking #{op.reservation_id} · Status: {op.new_status}
-                      </div>
-                      {op.note && (
-                        <div className="text-muted-foreground">{op.note}</div>
+                      {activity.receptionist && (
+                        <div className="text-muted-foreground">
+                          By {activity.receptionist.name}
+                        </div>
+                      )}
+                      {activity.reservation_id && (
+                        <div className="text-muted-foreground">
+                          Booking #{activity.reservation_id}
+                        </div>
                       )}
                       <div className="text-xs text-muted-foreground">
-                        {new Date(op.created_at).toLocaleString()}
+                        {new Date(activity.timestamp).toLocaleString()}
                       </div>
                     </div>
-                    <Badge variant="secondary" className="capitalize">
-                      Override
+                    <Badge 
+                      variant={
+                        activity.type === 'check_in' ? 'default' :
+                        activity.type === 'check_out' ? 'secondary' :
+                        activity.type === 'cancellation' ? 'destructive' :
+                        activity.type === 'confirmation' ? 'default' :
+                        'outline'
+                      }
+                      className="capitalize ml-2"
+                    >
+                      {activity.type.replace('_', ' ')}
                     </Badge>
                   </div>
                 ))}
                 {activities.length === 0 && (
                   <div className="text-sm text-muted-foreground text-center py-4">
-                    No recent activities.
+                    No recent receptionist activities.
                   </div>
                 )}
               </>
