@@ -25,6 +25,8 @@ export function Bookings() {
   const [loading, setLoading] = useState(true);
   const [bookings, setBookings] = useState<any[]>([]);
   const [meta, setMeta] = useState<any>(null);
+  const [statusCounts, setStatusCounts] = useState<any>(null);
+  const [totalActive, setTotalActive] = useState<number>(0);
 
   useEffect(() => {
     const loadBookings = async () => {
@@ -53,6 +55,8 @@ export function Bookings() {
         }));
         setBookings(transformed);
         setMeta(response.meta);
+        setStatusCounts(response.status_counts || null);
+        setTotalActive(response.total_active || 0);
       } catch (error: any) {
         console.error('Failed to load bookings:', error);
         toast.error(error.response?.data?.message || 'Failed to load bookings');
@@ -64,13 +68,13 @@ export function Bookings() {
   }, [search, status, page]);
 
   const summary = {
-    total: meta?.total || 0,
+    total: totalActive || 0, // Use total_active from API (pending + confirmed + checked_in)
     byStatus: {
-      confirmed: bookings.filter((b) => b.status === 'confirmed').length,
-      pending: bookings.filter((b) => b.status === 'pending').length,
-      checked_in: bookings.filter((b) => b.status === 'checked_in').length,
-      checked_out: bookings.filter((b) => b.status === 'checked_out').length,
-      cancelled: bookings.filter((b) => b.status === 'cancelled').length,
+      confirmed: statusCounts?.confirmed || 0,
+      pending: statusCounts?.pending || 0,
+      checked_in: statusCounts?.checked_in || 0,
+      checked_out: statusCounts?.checked_out || 0,
+      cancelled: statusCounts?.cancelled || 0,
     },
   };
 
