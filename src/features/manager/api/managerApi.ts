@@ -177,6 +177,52 @@ export const createOverride = async (data: CreateOverrideDto): Promise<{ data: M
 };
 
 /*
+ * Activities (Receptionist Activities)
+ */
+export interface ReceptionistActivity {
+  id: number;
+  type: 'reservation' | 'room' | 'check_in' | 'check_out' | 'cancellation' | 'confirmation' | 'other';
+  action: string;
+  description: string;
+  receptionist: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
+  reservation_id: number | null;
+  room_id: number | null;
+  meta: Record<string, unknown>;
+  timestamp: string;
+  created_at: string;
+}
+
+export interface GetActivitiesParams {
+  booking_id?: number;
+  action?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  per_page?: number;
+}
+
+export interface ActivitiesResponse {
+  data: ReceptionistActivity[];
+  meta: {
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    per_page: number;
+    to: number | null;
+    total: number;
+  };
+}
+
+export const getActivities = async (params?: GetActivitiesParams): Promise<ActivitiesResponse> => {
+  const response = await api.get(`${BASE_URL}/activities`, { params });
+  return response.data;
+};
+
+/*
  * Alerts
  */
 export interface ManagerAlert {
