@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 const userFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
-  role: z.enum(['receptionist', 'manager', 'admin', 'super_admin']),
+  role: z.enum(['admin', 'super_admin']),
   hotelId: z.number().nullable().optional(),
   phoneNumber: z.string().min(1, 'Phone number is required'),
   password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
@@ -44,7 +44,16 @@ interface UserFormProps {
   onCancel: () => void;
 }
 
-const roles: Role[] = ['receptionist', 'manager', 'admin', 'super_admin'];
+const roles: Role[] = ['admin', 'super_admin'];
+
+// Helper function to normalize role - convert receptionist/manager to admin
+function normalizeRole(role: string | undefined): 'admin' | 'super_admin' {
+  if (role === 'super_admin' || role === 'superadmin') {
+    return 'super_admin';
+  }
+  // Convert receptionist, manager, or any other role to admin
+  return 'admin';
+}
 
 export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const isEditing = !!user;
@@ -68,12 +77,13 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
     defaultValues: {
       name: user?.name || '',
       email: user?.email || '',
-      // If editing a client, keep their role, otherwise default to receptionist
+      // If editing a client, keep their role as admin (clients can't be edited via this form)
       // Note: client role is not in the schema, but we handle it in defaultValues
       // The backend will prevent changing TO client or creating clients
-      role: (user?.role && user.role !== 'client' && roles.includes(user.role as Role))
-        ? user.role
-        : 'receptionist',
+      // Also normalize receptionist/manager roles to admin
+      role: user?.role && user.role !== 'client' && roles.includes(user.role as Role)
+        ? (user.role as 'admin' | 'super_admin')
+        : normalizeRole(user?.role),
       hotelId: user?.hotelId || null,
       phoneNumber: user?.phoneNumber || '',
       password: '',
@@ -97,9 +107,9 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
         form.reset({
           name: user.name || '',
           email: user.email || '',
-          role: (user.role && user.role !== 'client' && roles.includes(user.role as Role))
-            ? user.role
-            : 'receptionist',
+          role: user.role && user.role !== 'client' && roles.includes(user.role as Role)
+            ? (user.role as 'admin' | 'super_admin')
+            : normalizeRole(user.role),
           hotelId: user.hotelId || null,
           phoneNumber: user.phoneNumber || '',
           password: '',
@@ -111,7 +121,7 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
         form.reset({
           name: '',
           email: '',
-          role: 'receptionist',
+          role: 'admin',
           hotelId: null,
           phoneNumber: '',
           password: '',
@@ -126,10 +136,7 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const selectedRole = form.watch('role');
 
   // Some roles require hotel assignment
-  const requiresHotel =
-    selectedRole === 'receptionist' ||
-    selectedRole === 'manager' ||
-    selectedRole === 'admin';
+  const requiresHotel = selectedRole === 'admin';
 
   const onSubmit = async (values: UserFormValues) => {
     try {

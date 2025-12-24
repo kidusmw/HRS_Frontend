@@ -12,13 +12,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,45 +22,11 @@ import { getSystemSettings, updateSystemSettings } from '../api/superAdminApi';
 
 const settingsFormSchema = z.object({
   systemName: z.string().min(1, 'System name is required'),
-  systemLogoUrl: z
-    .string()
-    .refine(
-      (val) =>
-        !val ||
-        val.startsWith('http://') ||
-        val.startsWith('https://') ||
-        val.startsWith('data:image/'),
-      {
-        message: 'Must be a valid URL or data URL',
-      }
-    )
-    .optional()
-    .or(z.literal('')),
-  defaultCurrency: z.string().min(1, 'Default currency is required'),
-  defaultTimezone: z.string().min(1, 'Default timezone is required'),
+  // Removed systemLogoUrl - only file uploads allowed
+  // Currency and timezone are fixed to USD/UTC, no longer editable
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
-
-const currencies = [
-  { code: 'USD', name: 'US Dollar ($)' },
-  { code: 'EUR', name: 'Euro (€)' },
-  { code: 'GBP', name: 'British Pound (£)' },
-  { code: 'JPY', name: 'Japanese Yen (¥)' },
-  { code: 'ETB', name: 'Ethiopian Birr (Br)' },
-];
-
-const timezones = [
-  'UTC',
-  'Africa/Addis_Ababa',
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'Europe/London',
-  'Europe/Paris',
-  'Asia/Tokyo',
-];
 
 export function Settings() {
   const [isLoading, setIsLoading] = useState(true);
@@ -77,13 +36,11 @@ export function Settings() {
     resolver: zodResolver(settingsFormSchema),
     defaultValues: {
       systemName: '',
-      systemLogoUrl: '',
-      defaultCurrency: 'USD',
-      defaultTimezone: 'UTC',
     },
   });
 
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
 
   // Fetch current settings
   useEffect(() => {
@@ -95,16 +52,8 @@ export function Settings() {
         setCurrentSettings(settings);
         
         // Reset form with fetched settings
-        // Ensure UTC is default if no timezone is set
-        const timezone = settings.defaultTimezone && settings.defaultTimezone.trim() !== '' 
-          ? settings.defaultTimezone 
-          : 'UTC';
-        
         form.reset({
           systemName: settings.systemName || '',
-          systemLogoUrl: settings.systemLogoUrl || '',
-          defaultCurrency: settings.defaultCurrency || 'USD',
-          defaultTimezone: timezone,
         });
         
         // Set logo preview if URL exists
@@ -125,13 +74,14 @@ export function Settings() {
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // For MVP: Create a data URL for preview and storage
-      // In production, upload to server and get URL
+      // Store the file for upload
+      setLogoFile(file);
+      
+      // Create a preview using FileReader
       const reader = new FileReader();
       reader.onloadend = () => {
         const result = reader.result as string;
         setLogoPreview(result);
-        form.setValue('systemLogoUrl', result);
       };
       reader.readAsDataURL(file);
     }
@@ -139,17 +89,23 @@ export function Settings() {
 
   const handleRemoveLogo = () => {
     setLogoPreview(null);
-    form.setValue('systemLogoUrl', '');
+    setLogoFile(null);
   };
 
   const onSubmit = async (values: SettingsFormValues) => {
     try {
-      const response = await updateSystemSettings({
+      const payload: any = {
         systemName: values.systemName,
-        systemLogoUrl: values.systemLogoUrl || null,
-        defaultCurrency: values.defaultCurrency,
-        defaultTimezone: values.defaultTimezone,
-      });
+        defaultCurrency: 'USD', // Always USD
+        defaultTimezone: 'UTC', // Always UTC
+      };
+
+      // Include logo file if uploaded
+      if (logoFile) {
+        payload.logo = logoFile;
+      }
+
+      const response = await updateSystemSettings(payload);
       
       const updatedSettings = response.data;
       setCurrentSettings(updatedSettings);
@@ -160,6 +116,9 @@ export function Settings() {
       } else {
         setLogoPreview(null);
       }
+      
+      // Clear logo file after successful upload
+      setLogoFile(null);
       
       toast.success('Settings saved successfully');
     } catch (error: any) {
@@ -174,11 +133,9 @@ export function Settings() {
     if (currentSettings) {
       form.reset({
         systemName: currentSettings.systemName || '',
-        systemLogoUrl: currentSettings.systemLogoUrl || '',
-        defaultCurrency: currentSettings.defaultCurrency || 'USD',
-        defaultTimezone: currentSettings.defaultTimezone || 'UTC',
       });
       setLogoPreview(currentSettings.systemLogoUrl || null);
+      setLogoFile(null);
     }
   };
 
@@ -242,134 +199,75 @@ export function Settings() {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="systemLogoUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>System Logo</FormLabel>
-                    <FormControl>
-                      <div className="space-y-4">
-                        {logoPreview ? (
-                          <div className="relative inline-block">
-                            <img
-                              src={logoPreview}
-                              alt="Logo preview"
-                              className="h-20 w-auto border rounded"
-                            />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="icon"
-                              className="absolute -top-2 -right-2 h-6 w-6"
-                              onClick={handleRemoveLogo}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-4">
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleLogoUpload}
-                              className="hidden"
-                              id="logo-upload"
-                            />
-                            <label htmlFor="logo-upload">
-                              <Button type="button" variant="outline" asChild>
-                                <span>
-                                  <Upload className="mr-2 h-4 w-4" />
-                                  Upload Logo
-                                </span>
-                              </Button>
-                            </label>
-                            <span className="text-sm text-muted-foreground">
-                              Or enter a URL
-                            </span>
-                          </div>
-                        )}
-                        {!logoPreview && (
-                          <Input
-                            type="url"
-                            placeholder="https://example.com/logo.png"
-                            {...field}
-                            value={field.value || ''}
-                          />
-                        )}
+              <FormItem>
+                <FormLabel>System Logo</FormLabel>
+                <FormControl>
+                  <div className="space-y-4">
+                    {logoPreview ? (
+                      <div className="relative inline-block">
+                        <img
+                          src={logoPreview}
+                          alt="Logo preview"
+                          className="h-20 w-auto border rounded"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={handleRemoveLogo}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                    </FormControl>
-                    <FormDescription>
-                      Upload or provide URL for the system logo
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    ) : (
+                      <div className="flex items-center gap-4">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                          id="logo-upload"
+                        />
+                        <label htmlFor="logo-upload">
+                          <Button type="button" variant="outline" asChild>
+                            <span>
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload Logo
+                            </span>
+                          </Button>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </FormControl>
+                <FormDescription>
+                  Upload the system logo image file
+                </FormDescription>
+              </FormItem>
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="defaultCurrency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Currency</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {currencies.map((currency) => (
-                            <SelectItem key={currency.code} value={currency.code}>
-                              {currency.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Default currency for all hotels
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Default Currency</label>
+                  <div className="flex items-center gap-2 p-3 border rounded-md bg-muted">
+                    <span className="text-sm font-semibold">USD</span>
+                    <span className="text-xs text-muted-foreground">(US Dollar)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    System currency is fixed to USD
+                  </p>
+                </div>
 
-                <FormField
-                  control={form.control}
-                  name="defaultTimezone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Timezone</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value || 'UTC'}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select timezone" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {timezones.map((tz) => (
-                            <SelectItem key={tz} value={tz}>
-                              {tz}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Default timezone for new hotels
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Default Timezone</label>
+                  <div className="flex items-center gap-2 p-3 border rounded-md bg-muted">
+                    <span className="text-sm font-semibold">UTC</span>
+                    <span className="text-xs text-muted-foreground">(Coordinated Universal Time)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    System timezone is fixed to UTC
+                  </p>
+                </div>
               </div>
 
               <div className="flex justify-end gap-4">
@@ -405,8 +303,7 @@ export function Settings() {
                 {form.watch('systemName') || 'System Name'}
               </h3>
               <p className="text-sm text-muted-foreground">
-                Default Currency: {form.watch('defaultCurrency') || 'USD'} | Default
-                Timezone: {form.watch('defaultTimezone') || 'UTC'}
+                Default Currency: USD | Default Timezone: UTC
               </p>
             </div>
           </div>

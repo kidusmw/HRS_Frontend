@@ -39,10 +39,7 @@ const settingsFormSchema = z.object({
   }),
   cancellationHours: z.number().int().min(0, 'Cancellation hours must be 0 or greater'),
   allowOnlineBooking: z.boolean(),
-  requireDeposit: z.boolean(),
-  depositPercentage: z.number().min(0).max(100).optional(),
   emailNotifications: z.boolean(),
-  smsNotifications: z.boolean(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
@@ -69,10 +66,7 @@ export function Settings() {
       checkOutTime: '11:00',
       cancellationHours: 24,
       allowOnlineBooking: true,
-      requireDeposit: false,
-      depositPercentage: 0,
       emailNotifications: true,
-      smsNotifications: false,
     },
   });
 
@@ -113,10 +107,7 @@ export function Settings() {
           checkOutTime: settings.checkOutTime || '11:00',
           cancellationHours: settings.cancellationHours || 24,
           allowOnlineBooking: settings.allowOnlineBooking ?? true,
-          requireDeposit: settings.requireDeposit ?? false,
-          depositPercentage: settings.depositPercentage || 0,
           emailNotifications: settings.emailNotifications ?? true,
-          smsNotifications: settings.smsNotifications ?? false,
         });
 
         if (logo.logoUrl) {
@@ -333,10 +324,7 @@ export function Settings() {
         checkOutTime: values.checkOutTime,
         cancellationHours: values.cancellationHours,
         allowOnlineBooking: values.allowOnlineBooking,
-        requireDeposit: values.requireDeposit,
-        depositPercentage: values.requireDeposit ? values.depositPercentage : 0,
         emailNotifications: values.emailNotifications,
-        smsNotifications: values.smsNotifications,
       };
 
       const response = await updateAdminSettings(settingsPayload);
@@ -366,10 +354,7 @@ export function Settings() {
         checkOutTime: currentSettings.checkOutTime || '11:00',
         cancellationHours: currentSettings.cancellationHours || 24,
         allowOnlineBooking: currentSettings.allowOnlineBooking ?? true,
-        requireDeposit: currentSettings.requireDeposit ?? false,
-        depositPercentage: currentSettings.depositPercentage || 0,
         emailNotifications: currentSettings.emailNotifications ?? true,
-        smsNotifications: currentSettings.smsNotifications ?? false,
       });
       setLogoPreview(currentSettings.logoUrl || null);
     }
@@ -727,54 +712,6 @@ export function Settings() {
                   </FormItem>
                 )}
               />
-
-              <FormField
-                control={form.control}
-                name="requireDeposit"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Require Deposit</FormLabel>
-                      <FormDescription>
-                        Require a deposit payment at the time of booking
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {form.watch('requireDeposit') && (
-                <FormField
-                  control={form.control}
-                  name="depositPercentage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Deposit Percentage</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          placeholder="0"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          value={field.value || ''}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Percentage of total booking amount required as deposit (0-100)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
             </CardContent>
           </Card>
 
@@ -794,27 +731,6 @@ export function Settings() {
                       <FormLabel className="text-base">Email Notifications</FormLabel>
                       <FormDescription>
                         Send booking confirmations and updates via email
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="smsNotifications"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">SMS Notifications</FormLabel>
-                      <FormDescription>
-                        Send booking confirmations and updates via SMS
                       </FormDescription>
                     </div>
                     <FormControl>

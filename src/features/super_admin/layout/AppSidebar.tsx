@@ -7,6 +7,7 @@ import {
   FileText,
   Database,
   Settings,
+  Wallet,
 } from 'lucide-react';
 
 const navItems = [
@@ -39,6 +40,11 @@ const navItems = [
     title: 'Settings',
     href: '/super-admin/settings',
     icon: Settings,
+  },
+  {
+    title: 'Payment Options',
+    href: '/super-admin/payment-options',
+    icon: Wallet,
   },
 ];
 

@@ -57,9 +57,6 @@ export function Topbar() {
             <DropdownMenuItem onClick={() => navigate('/super-admin/profile')}>
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/super-admin/preferences')}>
-              Preferences
-            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>Log out</DropdownMenuItem>
           </DropdownMenuContent>
