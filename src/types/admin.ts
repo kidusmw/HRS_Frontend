@@ -64,6 +64,9 @@ export interface SystemSettingsDto {
   systemLogoUrl?: string | null;
   defaultCurrency: string;
   defaultTimezone: string;
+  chapaEnabled: boolean;
+  stripeEnabled: boolean;
+  telebirrEnabled: boolean;
 }
 
 export interface NotificationItem {

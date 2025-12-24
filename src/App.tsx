@@ -18,8 +18,8 @@ import { Hotels } from './features/super_admin/pages/Hotels'
 import { Logs } from './features/super_admin/pages/Logs'
 import { Backups } from './features/super_admin/pages/Backups'
 import { Settings } from './features/super_admin/pages/Settings'
+import { PaymentOptions } from './features/super_admin/pages/PaymentOptions'
 import { Profile } from './features/super_admin/pages/Profile'
-import { Preferences } from './features/super_admin/pages/Preferences'
 import { Dashboard as AdminDashboard } from './features/admin/pages/Dashboard'
 import { Users as AdminUsers } from './features/admin/pages/Users'
 import { Rooms } from './features/admin/pages/Rooms'
@@ -147,18 +147,18 @@ function App() {
         }
       />
       <Route
-        path="/super-admin/profile"
+        path="/super-admin/payment-options"
         element={
           <SuperAdminRoute>
-            <Profile />
+            <PaymentOptions />
           </SuperAdminRoute>
         }
       />
       <Route
-        path="/super-admin/preferences"
+        path="/super-admin/profile"
         element={
           <SuperAdminRoute>
-            <Preferences />
+            <Profile />
           </SuperAdminRoute>
         }
       />

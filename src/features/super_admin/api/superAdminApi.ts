@@ -288,10 +288,32 @@ export const getSystemSettings = async (): Promise<{ data: SystemSettingsDto }> 
 };
 
 export const updateSystemSettings = async (
-  data: SystemSettingsDto
+  data: SystemSettingsDto & { logo?: File }
 ): Promise<{ data: SystemSettingsDto }> => {
-  const response = await api.put(`${BASE_URL}/settings/system`, data);
-  return response.data;
+  // Always use FormData when logo is provided, otherwise use JSON
+  if (data.logo) {
+    const formData = new FormData();
+    formData.append('systemName', data.systemName);
+    formData.append('logo', data.logo);
+    if (data.chapaEnabled !== undefined) {
+      formData.append('chapaEnabled', data.chapaEnabled.toString());
+    }
+    if (data.stripeEnabled !== undefined) {
+      formData.append('stripeEnabled', data.stripeEnabled.toString());
+    }
+    if (data.telebirrEnabled !== undefined) {
+      formData.append('telebirrEnabled', data.telebirrEnabled.toString());
+    }
+
+    // Don't set Content-Type header - let axios set it automatically with boundary
+    const response = await api.post(`${BASE_URL}/settings/system`, formData);
+    return response.data;
+  } else {
+    // Remove systemLogoUrl from payload - only file uploads allowed
+    const { systemLogoUrl, ...payload } = data;
+    const response = await api.put(`${BASE_URL}/settings/system`, payload);
+    return response.data;
+  }
 };
 
 export const getHotelSettings = async (hotelId: number): Promise<unknown> => {
