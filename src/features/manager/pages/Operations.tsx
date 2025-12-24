@@ -34,6 +34,8 @@ export function Operations() {
           const bookingId = parseInt(activitySearch);
           if (!isNaN(bookingId)) {
             params.booking_id = bookingId;
+          } else {
+            params.receptionist_name = activitySearch;
           }
         }
         const response = await getActivities(params);
@@ -105,7 +107,7 @@ export function Operations() {
               <div className="relative w-full sm:w-64">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search booking ID"
+                  placeholder="Search booking ID or receptionist name"
                   value={activitySearch}
                   onChange={(e) => setActivitySearch(e.target.value)}
                   className="pl-9"
