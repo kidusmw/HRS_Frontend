@@ -1,12 +1,6 @@
-import { addDays, isAfter, isBefore, parseISO } from 'date-fns'
-import {
-  mockAvailability,
-  mockHotels,
-  mockReviews,
-  type AvailabilityDay,
-  type Hotel,
-  type Review,
-} from '../data/mockData'
+import { format } from 'date-fns'
+import api from '@/lib/axios'
+import type { Hotel, Review, AvailabilityByType } from '../data/mockData'
 
 export type HotelSearchParams = {
   search?: string
@@ -15,24 +9,79 @@ export type HotelSearchParams = {
   sort?: 'price-asc' | 'price-desc' | 'rating-desc'
 }
 
-const delay = <T,>(data: T, ms = 300) =>
-  new Promise<T>((resolve) => setTimeout(() => resolve(data), ms))
+interface ApiHotelListItem {
+  id: string
+  name: string
+  city: string
+  country: string
+  address: string
+  priceFrom: number
+  rating: number
+  images: string[]
+  reviewSummary: {
+    averageRating: number
+    totalReviews: number
+  }
+}
+
+interface ApiHotelDetail {
+  id: string
+  name: string
+  city: string
+  country: string
+  address: string
+  description: string
+  images: string[]
+  roomTypes: Array<{
+    type: string
+    priceFrom: number
+    description: string | null
+    images: string[]
+  }>
+  reviewSummary: {
+    averageRating: number
+    totalReviews: number
+  }
+}
+
+interface ApiReview {
+  id: string
+  hotelId: string
+  userName: string
+  rating: number
+  date: string
+  comment: string
+}
+
+interface ApiAvailabilityResponse {
+  data: AvailabilityByType[]
+}
 
 export async function getHotels(params: HotelSearchParams = {}): Promise<Hotel[]> {
   const { search, minRating, maxPrice, sort } = params
 
-  let results = [...mockHotels]
+  const queryParams: Record<string, string> = {}
+  if (search) queryParams.search = search
+  if (sort) queryParams.sort = sort
 
-  if (search && search.trim()) {
-    const q = search.toLowerCase()
-    results = results.filter(
-      (h) =>
-        h.name.toLowerCase().includes(q) ||
-        h.city.toLowerCase().includes(q) ||
-        h.country.toLowerCase().includes(q)
-    )
-  }
+  const response = await api.get<{ data: ApiHotelListItem[]; meta: any }>('/customer/hotels', {
+    params: queryParams,
+  })
 
+  let results = response.data.data.map((h) => ({
+    id: h.id,
+    name: h.name,
+    city: h.city,
+    country: h.country,
+    address: h.address,
+    rating: h.rating,
+    priceFrom: h.priceFrom,
+    description: '', // Not in list view
+    images: h.images,
+    reviewSummary: h.reviewSummary,
+  }))
+
+  // Client-side filtering for minRating and maxPrice (backend doesn't support these yet)
   if (minRating) {
     results = results.filter((h) => h.rating >= minRating)
   }
@@ -41,43 +90,71 @@ export async function getHotels(params: HotelSearchParams = {}): Promise<Hotel[]
     results = results.filter((h) => h.priceFrom <= maxPrice)
   }
 
-  if (sort === 'price-asc') {
-    results = results.sort((a, b) => a.priceFrom - b.priceFrom)
-  } else if (sort === 'price-desc') {
-    results = results.sort((a, b) => b.priceFrom - a.priceFrom)
-  } else if (sort === 'rating-desc') {
-    results = results.sort((a, b) => b.rating - a.rating)
-  }
-
-  return delay(results)
+  return results
 }
 
 export async function getHotelById(id: string): Promise<Hotel | undefined> {
-  const hotel = mockHotels.find((h) => h.id === id)
-  return delay(hotel)
+  try {
+    const response = await api.get<ApiHotelDetail>(`/customer/hotels/${id}`)
+    const h = response.data
+    // Calculate priceFrom from roomTypes
+    const priceFrom = h.roomTypes && h.roomTypes.length > 0
+      ? Math.min(...h.roomTypes.map(rt => rt.priceFrom))
+      : 0
+
+    return {
+      id: String(h.id),
+      name: h.name,
+      city: h.city,
+      country: h.country,
+      address: h.address,
+      rating: h.reviewSummary.averageRating,
+      priceFrom,
+      description: h.description,
+      images: h.images,
+      reviewSummary: h.reviewSummary,
+      roomTypes: h.roomTypes,
+    }
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      return undefined
+    }
+    throw error
+  }
 }
 
 export async function getAvailability(options: {
   hotelId: string
   startDate: Date
   endDate: Date
-}): Promise<AvailabilityDay[]> {
+}): Promise<AvailabilityByType[]> {
   const { hotelId, startDate, endDate } = options
-  const days = mockAvailability[hotelId] ?? []
 
-  const filtered = days.filter((day) => {
-    const d = parseISO(day.date)
-    return (
-      (isAfter(d, addDays(startDate, -1)) || d.getTime() === startDate.getTime()) &&
-      (isBefore(d, addDays(endDate, 1)) || d.getTime() === endDate.getTime())
-    )
-  })
+  const response = await api.get<ApiAvailabilityResponse>(
+    `/customer/hotels/${hotelId}/availability`,
+    {
+      params: {
+        start: format(startDate, 'yyyy-MM-dd'),
+        end: format(endDate, 'yyyy-MM-dd'),
+      },
+    }
+  )
 
-  return delay(filtered)
+  return response.data.data
 }
 
 export async function getReviews(hotelId: string): Promise<Review[]> {
-  const reviews = mockReviews.filter((r) => r.hotelId === hotelId)
-  return delay(reviews)
+  const response = await api.get<{ data: ApiReview[]; meta: any }>(
+    `/customer/hotels/${hotelId}/reviews`
+  )
+
+  return response.data.data.map((r) => ({
+    id: r.id,
+    hotelId: r.hotelId,
+    userName: r.userName,
+    rating: r.rating,
+    date: r.date,
+    comment: r.comment,
+  }))
 }
 

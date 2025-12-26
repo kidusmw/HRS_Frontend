@@ -7,19 +7,28 @@ export type Hotel = {
   rating: number
   priceFrom: number
   description: string
-  amenities: string[]
   images: string[]
-  coordinates: { lat: number; lng: number }
   reviewSummary: {
     averageRating: number
     totalReviews: number
   }
+  roomTypes?: Array<{
+    type: string
+    priceFrom: number
+    description: string | null
+    images: string[]
+  }>
 }
 
 export type AvailabilityDay = {
   date: string // ISO date
   roomsAvailable: number
   price: number
+}
+
+export type AvailabilityByType = {
+  type: string
+  days: AvailabilityDay[]
 }
 
 export type Review = {

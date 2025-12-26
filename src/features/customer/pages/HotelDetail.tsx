@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getAvailability, getHotelById, getReviews } from '../api/customerApi'
-import type { AvailabilityDay, Hotel, Review } from '../data/mockData'
+import type { AvailabilityByType, Hotel, Review } from '../data/mockData'
 
 export function HotelDetail() {
   const { id } = useParams<{ id: string }>()
@@ -30,7 +30,7 @@ export function HotelDetail() {
     from: new Date(),
     to: addDays(new Date(), 2),
   })
-  const [availability, setAvailability] = useState<AvailabilityDay[]>([])
+  const [availability, setAvailability] = useState<AvailabilityByType[]>([])
   const [loadingAvailability, setLoadingAvailability] = useState(false)
 
   const [reviews, setReviews] = useState<Review[]>([])
@@ -161,23 +161,15 @@ export function HotelDetail() {
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="md:col-span-2 shadow-sm">
             <CardHeader>
-              <CardTitle>Amenities & overview</CardTitle>
+              <CardTitle>Overview</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">{hotel.description}</p>
-              <div className="flex flex-wrap gap-2">
-                {hotel.amenities.map((item) => (
-                  <Badge key={item} variant="secondary">
-                    {item}
-                  </Badge>
-                ))}
-              </div>
               <Separator />
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold">Location</h3>
                 <div className="rounded-lg border bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
-                  Map placeholder · {hotel.city}, {hotel.country} ({hotel.coordinates.lat.toFixed(3)},{' '}
-                  {hotel.coordinates.lng.toFixed(3)})
+                  Map placeholder · {hotel.city}, {hotel.country}
                 </div>
               </div>
             </CardContent>
@@ -185,7 +177,7 @@ export function HotelDetail() {
 
           <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Availability (mock)</CardTitle>
+              <CardTitle>Availability</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <Calendar
@@ -194,7 +186,7 @@ export function HotelDetail() {
                 onSelect={setDateRange}
                 numberOfMonths={1}
               />
-              <div className="space-y-2">
+              <div className="space-y-4">
                 {loadingAvailability && <Skeleton className="h-16 w-full" />}
                 {!loadingAvailability && availability.length === 0 && (
                   <p className="text-sm text-muted-foreground">
@@ -202,17 +194,22 @@ export function HotelDetail() {
                   </p>
                 )}
                 {!loadingAvailability &&
-                  availability.map((day) => (
-                    <div
-                      key={day.date}
-                      className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                    >
-                      <span className="text-muted-foreground">
-                        {format(new Date(day.date), 'EEE, MMM d')}
-                      </span>
-                      <span className="font-medium">
-                        {day.roomsAvailable > 0 ? `${day.roomsAvailable} rooms · $${day.price}` : 'Sold out'}
-                      </span>
+                  availability.map((typeAvailability) => (
+                    <div key={typeAvailability.type} className="space-y-2">
+                      <h4 className="text-sm font-semibold">{typeAvailability.type}</h4>
+                      {typeAvailability.days.map((day) => (
+                        <div
+                          key={day.date}
+                          className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                        >
+                          <span className="text-muted-foreground">
+                            {format(new Date(day.date), 'EEE, MMM d')}
+                          </span>
+                          <span className="font-medium">
+                            {day.roomsAvailable > 0 ? `${day.roomsAvailable} rooms · $${day.price}` : 'Sold out'}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   ))}
               </div>
@@ -226,7 +223,7 @@ export function HotelDetail() {
           </CardHeader>
           <CardContent>
             {reviews.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No reviews yet in mock data.</p>
+              <p className="text-sm text-muted-foreground">No reviews yet.</p>
             ) : (
               <ScrollArea className="h-64 pr-4">
                 <div className="space-y-4">

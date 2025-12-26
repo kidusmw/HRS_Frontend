@@ -42,16 +42,6 @@ export function HotelCard({ hotel, onReserve, onView }: Props) {
             <p className="text-sm text-muted-foreground line-clamp-2">
               {hotel.description}
             </p>
-            <div className="flex flex-wrap gap-2">
-              {hotel.amenities.slice(0, 4).map((amenity) => (
-                <Badge key={amenity} variant="secondary">
-                  {amenity}
-                </Badge>
-              ))}
-              {hotel.amenities.length > 4 && (
-                <Badge variant="outline">+{hotel.amenities.length - 4} more</Badge>
-              )}
-            </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-lg font-semibold">${hotel.priceFrom} / night</div>
