@@ -201,3 +201,26 @@ export async function getPaymentStatus(txRef: string): Promise<PaymentStatusResp
   return response.data.data
 }
 
+export interface CustomerReservation {
+  id: number
+  hotelName: string
+  roomType: string
+  roomNumber: number | null
+  checkIn: string
+  checkOut: string
+  status: string
+  totalAmount: number
+  amountPaid: number
+  currency: string
+  paymentStatus: string
+  createdAt: string
+}
+
+export async function getMyReservations(): Promise<CustomerReservation[]> {
+  const response = await api.get<{ data: CustomerReservation[] }>(
+    '/customer/reservations'
+  )
+
+  return response.data.data
+}
+
