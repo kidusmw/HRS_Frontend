@@ -78,6 +78,13 @@ export function HotelDetail() {
     return selectedRoomType.priceFrom * numberOfNights
   }, [selectedRoomType, numberOfNights])
 
+  const galleryImages = hotel?.images ?? []
+  const mainImage = galleryImages[0]
+  const sideTopImage = galleryImages[1] ?? mainImage
+  const sideBottomImage = galleryImages[2] ?? mainImage
+  const thumbImages = galleryImages.slice(3, 8) // up to 5 thumbs
+  const extraThumbCount = Math.max(0, galleryImages.length - 3 - thumbImages.length)
+
   const handleReserve = () => {
     if (!user) {
       setShowAuthPrompt(true)
@@ -134,180 +141,255 @@ export function HotelDetail() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="md:col-span-2 grid grid-cols-2 gap-2">
-            <img
-              src={hotel.images[0]}
-              alt={hotel.name}
-              className="col-span-2 h-64 w-full rounded-lg object-cover"
-              loading="lazy"
-            />
-            {hotel.images.slice(1).map((src) => (
-              <img
-                key={src}
-                src={src}
-                alt={hotel.name}
-                className="h-32 w-full rounded-lg object-cover"
-                loading="lazy"
-              />
-            ))}
-          </div>
-          <Card className="md:col-span-1 self-start shadow-sm sticky top-4">
-            <CardHeader>
-              <CardTitle className="text-lg">Reserve your stay</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {selectedRoomType ? (
+          <div className="md:col-span-2 space-y-6">
+            <div className="overflow-hidden rounded-2xl border bg-muted/10 shadow-sm">
+              {mainImage ? (
                 <>
-                  <div className="space-y-2">
-                    <div className="text-sm font-medium">Selected: {selectedRoomType.type}</div>
-                    {dateRange?.from && (
-                      <div className="text-sm text-muted-foreground">
-                        Check-in: {format(dateRange.from, 'MMM d, yyyy')}
-                      </div>
-                    )}
-                    {dateRange?.to && (
-                      <div className="text-sm text-muted-foreground">
-                        Check-out: {format(dateRange.to, 'MMM d, yyyy')}
-                      </div>
-                    )}
-                  </div>
-                  {selectedRoomType.priceFrom !== null && selectedRoomType.priceFrom !== undefined ? (
-                    <div className="space-y-1">
-                      <div className="text-2xl font-semibold">
-                        {totalPrice !== null ? `$${totalPrice.toFixed(2)}` : `$${selectedRoomType.priceFrom} / night`}
-                      </div>
-                      {totalPrice !== null && numberOfNights > 0 && (
-                        <div className="text-sm text-muted-foreground">
-                          ${selectedRoomType.priceFrom} × {numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'}
-                        </div>
-                      )}
+                  {/* Top collage */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2">
+                    {/* Main */}
+                    <div className="md:col-span-3 md:row-span-2">
+                      <img
+                        src={mainImage}
+                        alt={hotel.name}
+                        className="h-64 w-full object-cover md:h-full"
+                        loading="lazy"
+                      />
                     </div>
-                  ) : (
-                    <div className="text-lg font-semibold text-muted-foreground">Sold out</div>
+
+                    {/* Right top */}
+                    <div className="md:col-span-1 md:row-span-1 md:border-l md:border-b">
+                      <img
+                        src={sideTopImage}
+                        alt={hotel.name}
+                        className="h-40 w-full object-cover md:h-full"
+                        loading="lazy"
+                      />
+                    </div>
+
+                    {/* Right bottom */}
+                    <div className="md:col-span-1 md:row-span-1 md:border-l">
+                      <img
+                        src={sideBottomImage}
+                        alt={hotel.name}
+                        className="h-40 w-full object-cover md:h-full"
+                        loading="lazy"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Bottom thumbs */}
+                  {thumbImages.length > 0 && (
+                    <div className="grid grid-cols-3 border-t md:grid-cols-5">
+                      {thumbImages.map((src, idx) => {
+                        const isLast = idx === thumbImages.length - 1
+                        const showOverlay = isLast && extraThumbCount > 0
+
+                        return (
+                          <div
+                            key={`${src}-${idx}`}
+                            className="relative border-r last:border-r-0"
+                          >
+                            <img
+                              src={src}
+                              alt={hotel.name}
+                              className="h-20 w-full object-cover md:h-24"
+                              loading="lazy"
+                            />
+                            {showOverlay && (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-semibold text-white">
+                                +{extraThumbCount} photos
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   )}
                 </>
               ) : (
-                <div className="text-sm text-muted-foreground">
-                  Select a room type and dates to see pricing
+                <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+                  No photos available
                 </div>
               )}
-              <Button className="w-full" onClick={handleReserve} disabled={!selectedRoomType || !user}>
-                Reserve
-              </Button>
-              <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-                <ShieldCheck className="h-4 w-4" />
-                Secure checkout will be enabled in Phase 2.
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          <Card className="md:col-span-2 shadow-sm">
-            <CardHeader>
-              <CardTitle>Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">{hotel.description}</p>
-              <Separator />
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold">Location</h3>
-                <div className="rounded-lg border bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
-                  Map placeholder · {hotel.city}, {hotel.country}
+            {/* Overview (directly under gallery) */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle>Overview</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 pt-0">
+                <p className="text-sm text-muted-foreground">{hotel.description}</p>
+                <Separator />
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">Location</h3>
+                  <div className="rounded-lg border bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
+                    Map placeholder · {hotel.city}, {hotel.country}
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle>Availability</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Calendar
-                mode="range"
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={1}
-              />
-              <div className="space-y-4">
-                {loadingAvailability && <Skeleton className="h-16 w-full" />}
-                {!loadingAvailability && availability.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    No availability for the selected dates.
-                  </p>
-                )}
-                {!loadingAvailability &&
-                  availability.map((typeAvailability) => {
-                    const isSelected = selectedRoomType?.type === typeAvailability.type
-                    const isAvailable = typeAvailability.availableRooms !== undefined && typeAvailability.availableRooms > 0
-                    
-                    return (
-                      <div
-                        key={typeAvailability.type}
-                        onClick={() => isAvailable && setSelectedRoomType(typeAvailability)}
-                        className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors ${
-                          isSelected
-                            ? 'border-primary bg-primary/5'
-                            : isAvailable
-                            ? 'hover:bg-muted/50'
-                            : 'opacity-50 cursor-not-allowed'
-                        }`}
-                      >
-                        <h4 className="text-sm font-semibold">
-                          {typeAvailability.type}
-                          {typeAvailability.totalRooms !== undefined && (
-                            <> - {typeAvailability.totalRooms} {typeAvailability.totalRooms === 1 ? 'Room' : 'Rooms'}</>
-                          )}
-                          {typeAvailability.availableRooms !== undefined && typeAvailability.availableRooms > 0 && (
-                            <span className="ml-2 text-xs text-muted-foreground">
-                              ({typeAvailability.availableRooms} available)
-                            </span>
-                          )}
-                        </h4>
-                        <span className="font-medium">
-                          {typeAvailability.priceFrom !== null && typeAvailability.priceFrom !== undefined
-                            ? `$${typeAvailability.priceFrom}`
-                            : 'Sold out'}
-                        </span>
-                      </div>
-                    )
-                  })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Guest reviews</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {reviews.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No reviews yet.</p>
-            ) : (
-              <ScrollArea className="h-64 pr-4">
-                <div className="space-y-4">
-                  {reviews.map((review) => (
-                    <div key={review.id} className="rounded-md border p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="font-semibold">{review.userName}</div>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Star className="h-4 w-4 fill-primary text-primary" />
-                          {review.rating.toFixed(1)}
+            {/* Guest reviews (aligned under Overview) */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle>Guest reviews</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {reviews.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No reviews yet.</p>
+                ) : (
+                  <ScrollArea className="h-64 pr-4">
+                    <div className="space-y-4">
+                      {reviews.map((review) => (
+                        <div key={review.id} className="rounded-md border p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="font-semibold">{review.userName}</div>
+                            <div className="flex items-center gap-1 text-sm">
+                              <Star className="h-4 w-4 fill-primary text-primary" />
+                              {review.rating.toFixed(1)}
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {format(new Date(review.date), 'MMM d, yyyy')}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">{review.comment}</p>
                         </div>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(review.date), 'MMM d, yyyy')}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">{review.comment}</p>
+                      ))}
                     </div>
-                  ))}
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right rail: keep Reserve + Availability close and sticky together */}
+          <div className="md:col-span-1 self-start sticky top-4 space-y-3">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-lg">Reserve your stay</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {selectedRoomType ? (
+                  <>
+                    <div className="space-y-2">
+                      <div className="text-sm font-medium">Selected: {selectedRoomType.type}</div>
+                      {dateRange?.from && (
+                        <div className="text-sm text-muted-foreground">
+                          Check-in: {format(dateRange.from, 'MMM d, yyyy')}
+                        </div>
+                      )}
+                      {dateRange?.to && (
+                        <div className="text-sm text-muted-foreground">
+                          Check-out: {format(dateRange.to, 'MMM d, yyyy')}
+                        </div>
+                      )}
+                    </div>
+                    {selectedRoomType.priceFrom !== null && selectedRoomType.priceFrom !== undefined ? (
+                      <div className="space-y-1">
+                        <div className="text-2xl font-semibold">
+                          {totalPrice !== null
+                            ? `$${totalPrice.toFixed(2)}`
+                            : `$${selectedRoomType.priceFrom} / night`}
+                        </div>
+                        {totalPrice !== null && numberOfNights > 0 && (
+                          <div className="text-sm text-muted-foreground">
+                            ${selectedRoomType.priceFrom} × {numberOfNights}{' '}
+                            {numberOfNights === 1 ? 'night' : 'nights'}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-lg font-semibold text-muted-foreground">Sold out</div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-sm text-muted-foreground">
+                    Select a room type and dates to see pricing
+                  </div>
+                )}
+                <Button
+                  className="w-full"
+                  onClick={handleReserve}
+                  disabled={!selectedRoomType || !user}
+                >
+                  Reserve
+                </Button>
+                <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+                  <ShieldCheck className="h-4 w-4" />
+                  Secure checkout will be enabled in Phase 2.
                 </div>
-              </ScrollArea>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>Availability</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Calendar
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={setDateRange}
+                  numberOfMonths={1}
+                />
+                <div className="space-y-4">
+                  {loadingAvailability && <Skeleton className="h-16 w-full" />}
+                  {!loadingAvailability && availability.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No availability for the selected dates.
+                    </p>
+                  )}
+                  {!loadingAvailability &&
+                    availability.map((typeAvailability) => {
+                      const isSelected = selectedRoomType?.type === typeAvailability.type
+                      const isAvailable =
+                        typeAvailability.availableRooms !== undefined &&
+                        typeAvailability.availableRooms > 0
+
+                      return (
+                        <div
+                          key={typeAvailability.type}
+                          onClick={() => isAvailable && setSelectedRoomType(typeAvailability)}
+                          className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'border-primary bg-primary/5'
+                              : isAvailable
+                                ? 'hover:bg-muted/50'
+                                : 'opacity-50 cursor-not-allowed'
+                          }`}
+                        >
+                          <h4 className="text-sm font-semibold">
+                            {typeAvailability.type}
+                            {typeAvailability.totalRooms !== undefined && (
+                              <>
+                                {' '}
+                                - {typeAvailability.totalRooms}{' '}
+                                {typeAvailability.totalRooms === 1 ? 'Room' : 'Rooms'}
+                              </>
+                            )}
+                            {typeAvailability.availableRooms !== undefined &&
+                              typeAvailability.availableRooms > 0 && (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  ({typeAvailability.availableRooms} available)
+                                </span>
+                              )}
+                          </h4>
+                          <span className="font-medium">
+                            {typeAvailability.priceFrom !== null &&
+                            typeAvailability.priceFrom !== undefined
+                              ? `$${typeAvailability.priceFrom}`
+                              : 'Sold out'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
       <Dialog open={showAuthPrompt} onOpenChange={setShowAuthPrompt}>
