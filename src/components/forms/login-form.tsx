@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { Link } from "react-router-dom"
-import { loginUserThunk, hydrateFromStorage } from "@/features/auth/authSlice"
+import { loginUserThunk } from "@/features/auth/authSlice"
 import { getGoogleRedirectUrl, forgotPassword } from "@/features/auth/api/authApi"
 import type { AppDispatch, RootState } from "@/app/store"
 import { Spinner } from "@/components/ui/spinner"
@@ -65,7 +65,7 @@ export function LoginForm({
         navigate('/manager/dashboard')
       } else {
         // Route other users to regular dashboard
-        navigate('/dashboard')
+        navigate('/')
       }
     }
   }, [isAuthenticated, user, navigate])
@@ -140,53 +140,8 @@ export function LoginForm({
   const handleGoogleLogin = async () => {
     try {
       const { redirect_url } = await getGoogleRedirectUrl()
-      
-      // Open popup window for Google OAuth
-      const popup = window.open(
-        redirect_url,
-        'google-oauth',
-        'width=500,height=600,scrollbars=yes,resizable=yes'
-      )
-
-      if (!popup) {
-        throw new Error('Popup blocked. Please allow popups for this site.')
-      }
-
-      // Listen for the popup to close or send a message
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed)
-          // Check if we have auth data in localStorage (set by popup)
-          const token = localStorage.getItem('auth_token')
-          const user = localStorage.getItem('auth_user')
-          if (token && user) {
-            // Hydrate Redux state and navigate
-            dispatch(hydrateFromStorage())
-          }
-        }
-      }, 1000)
-
-      // Listen for messages from the popup
-      const messageHandler = (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return
-        
-        if (event.data.type === 'GOOGLE_AUTH_SUCCESS') {
-          const { user, access_token } = event.data
-          localStorage.setItem('auth_token', access_token)
-          localStorage.setItem('auth_user', JSON.stringify(user))
-          dispatch(hydrateFromStorage())
-          popup.close()
-          clearInterval(checkClosed)
-          window.removeEventListener('message', messageHandler)
-        } else if (event.data.type === 'GOOGLE_AUTH_ERROR') {
-          console.error('Google auth error:', event.data.error)
-          popup.close()
-          clearInterval(checkClosed)
-          window.removeEventListener('message', messageHandler)
-        }
-      }
-
-      window.addEventListener('message', messageHandler)
+      // Redirect in the same window instead of opening popup
+      window.location.href = redirect_url
     } catch (error) {
       console.error('Google login failed:', error)
     }
