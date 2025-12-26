@@ -23,6 +23,12 @@ export function CustomerHeader() {
           </Link>
           {isCustomer ? (
             <div className="flex items-center gap-4">
+              <Link 
+                to="/reservations" 
+                className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Reservations
+              </Link>
               <span className="text-sm text-muted-foreground">
                 {user.name}
               </span>

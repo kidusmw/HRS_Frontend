@@ -28,6 +28,7 @@ export function SignupForm({
     email: "",
     password: "",
     password_confirmation: "",
+    phoneNumber: "",
   })
   const [errors, setErrors] = useState<Partial<RegisterData>>({})
   const [isSuccess, setIsSuccess] = useState(false)
@@ -91,8 +92,14 @@ export function SignupForm({
       newErrors.password_confirmation = "Passwords do not match"
     }
 
+    if (!formData.phoneNumber.trim()) {
+      newErrors.phoneNumber = "Phone number is required"
+    } else if (!/^\+[1-9]\d{1,14}$/.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = "Phone number must be in E.164 format (e.g., +251912345678)"
+    }
+
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    return Object.keys(newErrors ?? {}).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -103,7 +110,7 @@ export function SignupForm({
     try {
       await dispatch(registerUserThunk(formData)).unwrap()
       setIsSuccess(true)
-      setFormData({ name: "", email: "", password: "", password_confirmation: "" })
+      setFormData({ name: "", email: "", password: "", password_confirmation: "", phoneNumber: "" })
     } catch (error) {
       // Error is handled by Redux state
     }
@@ -188,6 +195,23 @@ export function SignupForm({
             with anyone else.
           </FieldDescription>
           {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+        </Field>
+        
+        <Field>
+          <FieldLabel htmlFor="phoneNumber">Phone Number</FieldLabel>
+          <Input 
+            id="phoneNumber" 
+            name="phoneNumber"
+            type="tel" 
+            placeholder="+251912345678" 
+            value={formData.phoneNumber}
+            onChange={handleChange}
+            required 
+          />
+          <FieldDescription>
+            Enter your phone number in E.164 format (e.g., +251912345678)
+          </FieldDescription>
+          {errors.phoneNumber && <p className="text-red-500 text-sm mt-1">{errors.phoneNumber}</p>}
         </Field>
         
         <Field>
