@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { MapPin, Search, XCircle } from 'lucide-react'
+import { Search, XCircle } from 'lucide-react'
 import type { RootState } from '@/app/store'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -71,12 +71,6 @@ export function Explore() {
             <p className="text-muted-foreground">
               Browse hotels, view locations, and reserve after you sign in.
             </p>
-          </div>
-          <div className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-sm ring-1 ring-border">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              Showing locations (no proximity filter)
-            </span>
           </div>
         </div>
       </section>
