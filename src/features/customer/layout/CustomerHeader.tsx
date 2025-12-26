@@ -27,7 +27,7 @@ export function CustomerHeader() {
                 {user.name}
               </span>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/dashboard">Dashboard</Link>
+                <Link to="/profile">Profile</Link>
               </Button>
             </div>
           ) : (

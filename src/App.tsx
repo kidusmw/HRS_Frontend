@@ -43,6 +43,7 @@ import { Reports as ReceptionistReports } from './features/receptionist/pages/Re
 import { Profile as ReceptionistProfile } from './features/receptionist/pages/Profile'
 import { Explore as CustomerExplore } from './features/customer/pages/Explore'
 import { HotelDetail as CustomerHotelDetail } from './features/customer/pages/HotelDetail'
+import { Profile as CustomerProfile } from './features/customer/pages/Profile'
 import { CustomerLayout } from './features/customer/layout/CustomerLayout'
 
 function RoleRedirect() {
@@ -86,6 +87,7 @@ function App() {
       <Route element={<CustomerLayout />}>
         <Route path='/' element={<CustomerExplore />} />
         <Route path='/hotels/:id' element={<CustomerHotelDetail />} />
+        <Route path='/profile' element={<CustomerProfile />} />
       </Route>
       <Route path='/login' element={<LoginPage />} />
       <Route path='/register' element={<RegisterPage />} />
