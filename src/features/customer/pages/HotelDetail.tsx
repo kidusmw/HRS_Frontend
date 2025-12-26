@@ -92,6 +92,12 @@ export function HotelDetail() {
     if (!selectedRoomType || !dateRange?.from || !dateRange?.to) {
       return
     }
+    // Check if user has a valid phone number
+    if (!user.phoneNumber || !/^\+[1-9]\d{1,14}$/.test(user.phoneNumber)) {
+      alert('Please complete your profile by adding a valid phone number before making a reservation.')
+      navigate('/profile')
+      return
+    }
     setShowConfirmDialog(true)
   }
 
@@ -116,7 +122,20 @@ export function HotelDetail() {
       window.location.href = response.checkout_url
     } catch (error: any) {
       console.error('Failed to create reservation intent:', error)
-      alert('Failed to initiate payment. Please try again.')
+      
+      // Check if error is due to missing/invalid phone number
+      if (error.response?.status === 422) {
+        const errors = error.response?.data?.errors
+        if (errors?.phoneNumber) {
+          alert('Please complete your profile by adding a valid phone number before making a reservation.')
+          navigate('/profile')
+          setIsProcessingPayment(false)
+          setShowConfirmDialog(false)
+          return
+        }
+      }
+      
+      alert(error.response?.data?.message || 'Failed to initiate payment. Please try again.')
       setIsProcessingPayment(false)
       setShowConfirmDialog(false)
     }

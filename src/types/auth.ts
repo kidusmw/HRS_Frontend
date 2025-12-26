@@ -35,6 +35,7 @@ export interface RegisterData {
   email: string;
   password: string;
   password_confirmation: string;
+  phoneNumber: string;
 }
 
 export interface AuthResponse {

@@ -36,10 +36,12 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { getProfile, updatePassword, updateProfile } from '@/features/auth/api/authApi';
 
-const profileFormSchema = z.object({
+const createProfileFormSchema = (isClient: boolean) => z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
-  phoneNumber: z.string().optional(),
+  phoneNumber: isClient
+    ? z.string().min(1, 'Phone number is required').regex(/^\+[1-9]\d{1,14}$/, 'Phone number must be in E.164 format (e.g., +251912345678)')
+    : z.string().regex(/^\+[1-9]\d{1,14}$/, 'Phone number must be in E.164 format (e.g., +251912345678)').optional().or(z.literal('')),
   avatar: z.instanceof(File).optional().or(z.literal('')),
 });
 
@@ -52,7 +54,6 @@ const passwordFormSchema = z.object({
   path: ['confirmPassword'],
 });
 
-type ProfileFormValues = z.infer<typeof profileFormSchema>;
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
 export function Profile() {
@@ -64,6 +65,10 @@ export function Profile() {
   const [removeAvatar, setRemoveAvatar] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isClient = user?.role === 'client';
+  const profileFormSchema = createProfileFormSchema(isClient);
+  type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -408,10 +413,15 @@ export function Profile() {
                   name="phoneNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
+                      <FormLabel>Phone Number {isClient && <span className="text-destructive">*</span>}</FormLabel>
                       <FormControl>
-                        <Input type="tel" placeholder="+1234567890" {...field} />
+                        <Input type="tel" placeholder="+251912345678" {...field} />
                       </FormControl>
+                      <FormDescription>
+                        {isClient
+                          ? 'Phone number is required for making reservations. Use E.164 format (e.g., +251912345678)'
+                          : 'Enter phone number in E.164 format (e.g., +251912345678)'}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
