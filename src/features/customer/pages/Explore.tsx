@@ -17,7 +17,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { HotelCard } from '../components/HotelCard'
 import { getHotels } from '../api/customerApi'
-import type { Hotel } from '../data/mockData'
+import type { Hotel } from '../types'
 
 export function Explore() {
   const navigate = useNavigate()

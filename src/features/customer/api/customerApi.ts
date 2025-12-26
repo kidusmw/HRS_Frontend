@@ -1,6 +1,6 @@
 import { format } from 'date-fns'
 import api from '@/lib/axios'
-import type { Hotel, Review, AvailabilityByType } from '../data/mockData'
+import type { AvailabilityByType, Hotel, Review } from '../types'
 
 export type HotelSearchParams = {
   search?: string
