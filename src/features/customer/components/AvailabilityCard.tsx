@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useMemo } from 'react'
 import type { DateRange } from 'react-day-picker'
+import { startOfToday } from 'date-fns'
 import { Calendar } from '@/components/ui/calendar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -23,6 +24,12 @@ export function AvailabilityCard({
   selectedRoomType,
   onRoomTypeSelect,
 }: Props) {
+  // Disable all dates before today
+  const disabledDates = useMemo(() => {
+    const today = startOfToday()
+    return (date: Date) => date < today
+  }, [])
+
   return (
     <Card className="shadow-sm">
       <CardHeader>
@@ -34,6 +41,7 @@ export function AvailabilityCard({
           selected={dateRange}
           onSelect={onDateRangeChange}
           numberOfMonths={1}
+          disabled={disabledDates}
         />
         <div className="space-y-4">
           {loadingAvailability && <Skeleton className="h-16 w-full" />}
