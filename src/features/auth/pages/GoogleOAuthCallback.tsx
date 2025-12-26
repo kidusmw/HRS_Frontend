@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useDispatch } from 'react-redux'
+import type { AppDispatch } from '@/app/store'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 
-const GoogleOAuthPopup = () => {
+const GoogleOAuthCallback = () => {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const dispatch = useDispatch<AppDispatch>()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
   const [message, setMessage] = useState('')
 
@@ -17,12 +21,14 @@ const GoogleOAuthPopup = () => {
         if (error) {
           setStatus('error')
           setMessage('Authentication failed: ' + error)
+          setTimeout(() => navigate('/login'), 2000)
           return
         }
 
         if (!code) {
           setStatus('error')
           setMessage('No authorization code received')
+          setTimeout(() => navigate('/login'), 2000)
           return
         }
 
@@ -40,41 +46,49 @@ const GoogleOAuthPopup = () => {
           setStatus('success')
           setMessage('Authentication successful!')
           
-          // Send success message to parent window
-          window.opener?.postMessage({
-            type: 'GOOGLE_AUTH_SUCCESS',
-            user: data.user,
-            access_token: data.access_token
-          }, window.location.origin)
+          const { user, access_token } = data
           
-          // Close popup after a short delay
+          // Store in localStorage
+          if (access_token) {
+            localStorage.setItem('auth_token', access_token)
+          }
+          localStorage.setItem('auth_user', JSON.stringify(user))
+          
+          // Directly update Redux state
+          dispatch({
+            type: 'auth/loginUserThunk/fulfilled',
+            payload: {
+              user,
+              access_token,
+            }
+          })
+          
+          // Navigate based on role
           setTimeout(() => {
-            window.close()
+            if (user.role === 'superadmin' || user.role === 'super_admin') {
+              navigate('/super-admin/dashboard')
+            } else if (user.role === 'admin') {
+              navigate('/admin/dashboard')
+            } else if (user.role === 'manager') {
+              navigate('/manager/dashboard')
+            } else {
+              navigate('/')
+            }
           }, 1500)
         } else {
           setStatus('error')
           setMessage(data.message || 'Authentication failed')
-          
-          // Send error message to parent window
-          window.opener?.postMessage({
-            type: 'GOOGLE_AUTH_ERROR',
-            error: data.message || 'Authentication failed'
-          }, window.location.origin)
+          setTimeout(() => navigate('/login'), 2000)
         }
       } catch (error) {
         setStatus('error')
         setMessage('Network error during authentication')
-        
-        // Send error message to parent window
-        window.opener?.postMessage({
-          type: 'GOOGLE_AUTH_ERROR',
-          error: 'Network error during authentication'
-        }, window.location.origin)
+        setTimeout(() => navigate('/login'), 2000)
       }
     }
 
     handleOAuthCallback()
-  }, [searchParams])
+  }, [searchParams, navigate, dispatch])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -93,7 +107,7 @@ const GoogleOAuthPopup = () => {
               <CheckCircle className="h-16 w-16 text-green-500 mb-4" />
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Success!</h1>
               <p className="text-gray-600">{message}</p>
-              <p className="text-sm text-gray-500 mt-2">This window will close automatically...</p>
+              <p className="text-sm text-gray-500 mt-2">Redirecting...</p>
             </>
           )}
           
@@ -102,7 +116,7 @@ const GoogleOAuthPopup = () => {
               <XCircle className="h-16 w-16 text-red-500 mb-4" />
               <h1 className="text-2xl font-bold text-gray-900 mb-2">Authentication Failed</h1>
               <p className="text-gray-600">{message}</p>
-              <p className="text-sm text-gray-500 mt-2">This window will close automatically...</p>
+              <p className="text-sm text-gray-500 mt-2">Redirecting to login...</p>
             </>
           )}
         </div>
@@ -111,4 +125,4 @@ const GoogleOAuthPopup = () => {
   )
 }
 
-export default GoogleOAuthPopup
+export default GoogleOAuthCallback

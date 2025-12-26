@@ -5,7 +5,7 @@ import LoginPage from './features/auth/pages/LoginPage'
 import RegisterPage from './features/auth/pages/RegisterPage'
 import VerifyEmailPage from './features/auth/pages/VerifyEmailPage'
 import { ResetPasswordPage } from './features/auth/pages/ResetPasswordPage'
-import GoogleOAuthPopup from './features/auth/pages/GoogleOAuthPopup'
+import GoogleOAuthCallback from './features/auth/pages/GoogleOAuthCallback'
 import ProtectedRoute from './components/ProtectedRoute'
 import { SuperAdminRoute } from './components/SuperAdminRoute'
 import { AdminRoute } from './components/AdminRoute'
@@ -41,6 +41,10 @@ import { Reservations as ReceptionistReservations } from './features/receptionis
 import { Rooms as ReceptionistRooms } from './features/receptionist/pages/Rooms'
 import { Reports as ReceptionistReports } from './features/receptionist/pages/Reports'
 import { Profile as ReceptionistProfile } from './features/receptionist/pages/Profile'
+import { Explore as CustomerExplore } from './features/customer/pages/Explore'
+import { HotelDetail as CustomerHotelDetail } from './features/customer/pages/HotelDetail'
+import { Profile as CustomerProfile } from './features/customer/pages/Profile'
+import { CustomerLayout } from './features/customer/layout/CustomerLayout'
 
 function RoleRedirect() {
   const user = useSelector((state: RootState) => state.auth.user)
@@ -80,20 +84,17 @@ function RoleRedirect() {
 function App() {
   return (
     <Routes>
-      <Route path='/' element={<Navigate to="/login" replace />} />
+      <Route element={<CustomerLayout />}>
+        <Route path='/' element={<CustomerExplore />} />
+        <Route path='/hotels/:id' element={<CustomerHotelDetail />} />
+        <Route path='/profile' element={<CustomerProfile />} />
+      </Route>
       <Route path='/login' element={<LoginPage />} />
       <Route path='/register' element={<RegisterPage />} />
       <Route path='/verify' element={<VerifyEmailPage />} />
       <Route path='/reset-password' element={<ResetPasswordPage />} />
-      <Route path='/oauth/google/popup' element={<GoogleOAuthPopup />} />
-      <Route 
-        path='/dashboard' 
-        element={
-          <ProtectedRoute>
-            <RoleRedirect />
-          </ProtectedRoute>
-        } 
-      />
+      <Route path='/oauth/google/callback' element={<GoogleOAuthCallback />} />
+
       <Route
         path="/super-admin"
         element={<Navigate to="/super-admin/dashboard" replace />}

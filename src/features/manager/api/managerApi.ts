@@ -198,6 +198,7 @@ export interface ReceptionistActivity {
 
 export interface GetActivitiesParams {
   booking_id?: number;
+  receptionist_name?: string;
   action?: string;
   from?: string;
   to?: string;
