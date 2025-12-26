@@ -158,3 +158,46 @@ export async function getReviews(hotelId: string): Promise<Review[]> {
   }))
 }
 
+export interface CreateReservationIntentPayload {
+  hotel_id: number
+  room_type: string
+  check_in: string
+  check_out: string
+  guests: number
+  return_url?: string
+}
+
+export interface CreateReservationIntentResponse {
+  intent_id: number
+  checkout_url: string
+  tx_ref: string
+}
+
+export interface PaymentStatusResponse {
+  payment_status: string
+  intent_status: string
+  reservation_id: number | null
+}
+
+export async function createReservationIntent(
+  payload: CreateReservationIntentPayload
+): Promise<CreateReservationIntentResponse> {
+  const response = await api.post<{
+    message: string
+    data: CreateReservationIntentResponse
+  }>('/customer/reservation-intents', payload)
+
+  return response.data.data
+}
+
+export async function getPaymentStatus(txRef: string): Promise<PaymentStatusResponse> {
+  const response = await api.get<{ data: PaymentStatusResponse }>(
+    '/customer/payments/status',
+    {
+      params: { tx_ref: txRef },
+    }
+  )
+
+  return response.data.data
+}
+

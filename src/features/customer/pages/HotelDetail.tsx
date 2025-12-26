@@ -1,25 +1,30 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from 'react-redux'
-import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { addDays, format, differenceInDays } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
-import { MapPin, ShieldCheck, Star } from 'lucide-react'
 import type { RootState } from '@/app/store'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getAvailability, getHotelById, getReviews } from '../api/customerApi'
+import {
+  createReservationIntent,
+  getAvailability,
+  getHotelById,
+  getReviews,
+} from '../api/customerApi'
+import { AuthPromptDialog } from '../components/AuthPromptDialog'
+import { AvailabilityCard } from '../components/AvailabilityCard'
+import { ConfirmationDialog } from '../components/ConfirmationDialog'
+import { GuestReviewsCard } from '../components/GuestReviewsCard'
+import { HotelHeader } from '../components/HotelHeader'
+import { HotelImageGallery } from '../components/HotelImageGallery'
+import { OverviewCard } from '../components/OverviewCard'
+import { ReserveCard } from '../components/ReserveCard'
 import type { AvailabilityByType, Hotel, Review } from '../types'
 
 export function HotelDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const location = useLocation()
   const user = useSelector((state: RootState) => state.auth.user)
 
   const [hotel, setHotel] = useState<Hotel | null>(null)
@@ -36,7 +41,8 @@ export function HotelDetail() {
 
   const [reviews, setReviews] = useState<Review[]>([])
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
-  const [showReserved, setShowReserved] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -78,19 +84,42 @@ export function HotelDetail() {
     return selectedRoomType.priceFrom * numberOfNights
   }, [selectedRoomType, numberOfNights])
 
-  const galleryImages = hotel?.images ?? []
-  const mainImage = galleryImages[0]
-  const sideTopImage = galleryImages[1] ?? mainImage
-  const sideBottomImage = galleryImages[2] ?? mainImage
-  const thumbImages = galleryImages.slice(3, 8) // up to 5 thumbs
-  const extraThumbCount = Math.max(0, galleryImages.length - 3 - thumbImages.length)
-
-  const handleReserve = () => {
+  const handlePayToConfirm = () => {
     if (!user) {
       setShowAuthPrompt(true)
       return
     }
-    setShowReserved(true)
+    if (!selectedRoomType || !dateRange?.from || !dateRange?.to) {
+      return
+    }
+    setShowConfirmDialog(true)
+  }
+
+  const handleConfirmPayment = async () => {
+    if (!hotel || !selectedRoomType || !dateRange?.from || !dateRange?.to || !user) {
+      return
+    }
+
+    setIsProcessingPayment(true)
+    try {
+      const returnUrl = `${window.location.origin}/payment/return`
+      const response = await createReservationIntent({
+        hotel_id: parseInt(hotel.id),
+        room_type: selectedRoomType.type,
+        check_in: format(dateRange.from, 'yyyy-MM-dd'),
+        check_out: format(dateRange.to, 'yyyy-MM-dd'),
+        guests: 1,
+        return_url: returnUrl,
+      })
+
+      // Redirect to Chapa checkout
+      window.location.href = response.checkout_url
+    } catch (error: any) {
+      console.error('Failed to create reservation intent:', error)
+      alert('Failed to initiate payment. Please try again.')
+      setIsProcessingPayment(false)
+      setShowConfirmDialog(false)
+    }
   }
 
   if (loading) {
@@ -119,321 +148,49 @@ export function HotelDetail() {
   return (
     <div className="bg-background">
       <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
-        <div className="flex flex-col gap-3">
-          <div className="text-sm text-muted-foreground">Hotel</div>
-          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            <h1 className="text-3xl font-bold">{hotel.name}</h1>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-primary">
-                <Star className="h-4 w-4 fill-primary" />
-                {avgRating.toFixed(1)} ({hotel.reviewSummary.totalReviews} reviews)
-              </span>
-              <Badge variant="outline">{hotel.city}</Badge>
-              <Badge variant="secondary">Mock data</Badge>
-            </div>
-          </div>
-          <div className="text-sm text-muted-foreground flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
-            <span>
-              {hotel.address}, {hotel.city}, {hotel.country}
-            </span>
-          </div>
-        </div>
+        <HotelHeader hotel={hotel} avgRating={avgRating} />
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="md:col-span-2 space-y-6">
-            <div className="overflow-hidden rounded-2xl border bg-muted/10 shadow-sm">
-              {mainImage ? (
-                <>
-                  {/* Top collage */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2">
-                    {/* Main */}
-                    <div className="md:col-span-3 md:row-span-2">
-                      <img
-                        src={mainImage}
-                        alt={hotel.name}
-                        className="h-64 w-full object-cover md:h-full"
-                        loading="lazy"
-                      />
-                    </div>
-
-                    {/* Right top */}
-                    <div className="md:col-span-1 md:row-span-1 md:border-l md:border-b">
-                      <img
-                        src={sideTopImage}
-                        alt={hotel.name}
-                        className="h-40 w-full object-cover md:h-full"
-                        loading="lazy"
-                      />
-                    </div>
-
-                    {/* Right bottom */}
-                    <div className="md:col-span-1 md:row-span-1 md:border-l">
-                      <img
-                        src={sideBottomImage}
-                        alt={hotel.name}
-                        className="h-40 w-full object-cover md:h-full"
-                        loading="lazy"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Bottom thumbs */}
-                  {thumbImages.length > 0 && (
-                    <div className="grid grid-cols-3 border-t md:grid-cols-5">
-                      {thumbImages.map((src, idx) => {
-                        const isLast = idx === thumbImages.length - 1
-                        const showOverlay = isLast && extraThumbCount > 0
-
-                        return (
-                          <div
-                            key={`${src}-${idx}`}
-                            className="relative border-r last:border-r-0"
-                          >
-                            <img
-                              src={src}
-                              alt={hotel.name}
-                              className="h-20 w-full object-cover md:h-24"
-                              loading="lazy"
-                            />
-                            {showOverlay && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-semibold text-white">
-                                +{extraThumbCount} photos
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-                  No photos available
-                </div>
-              )}
-            </div>
-
-            {/* Overview (directly under gallery) */}
-            <Card className="shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle>Overview</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 pt-0">
-                <p className="text-sm text-muted-foreground">{hotel.description}</p>
-                <Separator />
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold">Location</h3>
-                  <div className="rounded-lg border bg-muted/40 px-3 py-3 text-sm text-muted-foreground">
-                    Map placeholder · {hotel.city}, {hotel.country}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Guest reviews (aligned under Overview) */}
-            <Card className="shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle>Guest reviews</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {reviews.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No reviews yet.</p>
-                ) : (
-                  <ScrollArea className="h-64 pr-4">
-                    <div className="space-y-4">
-                      {reviews.map((review) => (
-                        <div key={review.id} className="rounded-md border p-3">
-                          <div className="flex items-center justify-between">
-                            <div className="font-semibold">{review.userName}</div>
-                            <div className="flex items-center gap-1 text-sm">
-                              <Star className="h-4 w-4 fill-primary text-primary" />
-                              {review.rating.toFixed(1)}
-                            </div>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {format(new Date(review.date), 'MMM d, yyyy')}
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1">{review.comment}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
+            <HotelImageGallery images={hotel.images ?? []} hotelName={hotel.name} />
+            <OverviewCard hotel={hotel} />
+            <GuestReviewsCard reviews={reviews} />
           </div>
 
           {/* Right rail: keep Reserve + Availability close and sticky together */}
           <div className="md:col-span-1 self-start sticky top-4 space-y-3">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-lg">Reserve your stay</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {selectedRoomType ? (
-                  <>
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium">Selected: {selectedRoomType.type}</div>
-                      {dateRange?.from && (
-                        <div className="text-sm text-muted-foreground">
-                          Check-in: {format(dateRange.from, 'MMM d, yyyy')}
-                        </div>
-                      )}
-                      {dateRange?.to && (
-                        <div className="text-sm text-muted-foreground">
-                          Check-out: {format(dateRange.to, 'MMM d, yyyy')}
-                        </div>
-                      )}
-                    </div>
-                    {selectedRoomType.priceFrom !== null && selectedRoomType.priceFrom !== undefined ? (
-                      <div className="space-y-1">
-                        <div className="text-2xl font-semibold">
-                          {totalPrice !== null
-                            ? `$${totalPrice.toFixed(2)}`
-                            : `$${selectedRoomType.priceFrom} / night`}
-                        </div>
-                        {totalPrice !== null && numberOfNights > 0 && (
-                          <div className="text-sm text-muted-foreground">
-                            ${selectedRoomType.priceFrom} × {numberOfNights}{' '}
-                            {numberOfNights === 1 ? 'night' : 'nights'}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-lg font-semibold text-muted-foreground">Sold out</div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-sm text-muted-foreground">
-                    Select a room type and dates to see pricing
-                  </div>
-                )}
-                <Button
-                  className="w-full"
-                  onClick={handleReserve}
-                  disabled={!selectedRoomType || !user}
-                >
-                  Reserve
-                </Button>
-                <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-                  <ShieldCheck className="h-4 w-4" />
-                  Secure checkout will be enabled in Phase 2.
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>Availability</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Calendar
-                  mode="range"
-                  selected={dateRange}
-                  onSelect={setDateRange}
-                  numberOfMonths={1}
-                />
-                <div className="space-y-4">
-                  {loadingAvailability && <Skeleton className="h-16 w-full" />}
-                  {!loadingAvailability && availability.length === 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      No availability for the selected dates.
-                    </p>
-                  )}
-                  {!loadingAvailability &&
-                    availability.map((typeAvailability) => {
-                      const isSelected = selectedRoomType?.type === typeAvailability.type
-                      const isAvailable =
-                        typeAvailability.availableRooms !== undefined &&
-                        typeAvailability.availableRooms > 0
-
-                      return (
-                        <div
-                          key={typeAvailability.type}
-                          onClick={() => isAvailable && setSelectedRoomType(typeAvailability)}
-                          className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors ${
-                            isSelected
-                              ? 'border-primary bg-primary/5'
-                              : isAvailable
-                                ? 'hover:bg-muted/50'
-                                : 'opacity-50 cursor-not-allowed'
-                          }`}
-                        >
-                          <h4 className="text-sm font-semibold">
-                            {typeAvailability.type}
-                            {typeAvailability.totalRooms !== undefined && (
-                              <>
-                                {' '}
-                                - {typeAvailability.totalRooms}{' '}
-                                {typeAvailability.totalRooms === 1 ? 'Room' : 'Rooms'}
-                              </>
-                            )}
-                            {typeAvailability.availableRooms !== undefined &&
-                              typeAvailability.availableRooms > 0 && (
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  ({typeAvailability.availableRooms} available)
-                                </span>
-                              )}
-                          </h4>
-                          <span className="font-medium">
-                            {typeAvailability.priceFrom !== null &&
-                            typeAvailability.priceFrom !== undefined
-                              ? `$${typeAvailability.priceFrom}`
-                              : 'Sold out'}
-                          </span>
-                        </div>
-                      )
-                    })}
-                </div>
-              </CardContent>
-            </Card>
+            <ReserveCard
+              selectedRoomType={selectedRoomType}
+              dateRange={dateRange}
+              totalPrice={totalPrice}
+              numberOfNights={numberOfNights}
+              isProcessingPayment={isProcessingPayment}
+              onPayClick={handlePayToConfirm}
+            />
+            <AvailabilityCard
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              availability={availability}
+              loadingAvailability={loadingAvailability}
+              selectedRoomType={selectedRoomType}
+              onRoomTypeSelect={setSelectedRoomType}
+            />
           </div>
         </div>
       </div>
 
-      <Dialog open={showAuthPrompt} onOpenChange={setShowAuthPrompt}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Sign in to reserve</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            You can explore without signing in. To reserve, please login or create an account.
-          </p>
-          <div className="flex flex-wrap gap-2 pt-4">
-            <Button
-              onClick={() =>
-                navigate('/login', { state: { from: location.pathname + location.search } })
-              }
-            >
-              Login
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() =>
-                navigate('/register', { state: { from: location.pathname + location.search } })
-              }
-            >
-              Create account
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ConfirmationDialog
+        open={showConfirmDialog}
+        onOpenChange={setShowConfirmDialog}
+        selectedRoomType={selectedRoomType}
+        dateRange={dateRange}
+        numberOfNights={numberOfNights}
+        totalPrice={totalPrice}
+        isProcessingPayment={isProcessingPayment}
+        onConfirm={handleConfirmPayment}
+      />
 
-      <Dialog open={showReserved} onOpenChange={setShowReserved}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reservation saved (mock)</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            In Phase 2 this will create a real reservation. For now we confirm your intent with mock
-            data.
-          </p>
-          <div className="pt-4">
-            <Button onClick={() => setShowReserved(false)}>Close</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AuthPromptDialog open={showAuthPrompt} onOpenChange={setShowAuthPrompt} />
     </div>
   )
 }
