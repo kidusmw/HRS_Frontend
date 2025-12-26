@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
-import { addDays, format } from 'date-fns'
+import { addDays, format, differenceInDays } from 'date-fns'
 import type { DateRange } from 'react-day-picker'
 import { MapPin, ShieldCheck, Star } from 'lucide-react'
 import type { RootState } from '@/app/store'
@@ -32,6 +32,7 @@ export function HotelDetail() {
   })
   const [availability, setAvailability] = useState<AvailabilityByType[]>([])
   const [loadingAvailability, setLoadingAvailability] = useState(false)
+  const [selectedRoomType, setSelectedRoomType] = useState<AvailabilityByType | null>(null)
 
   const [reviews, setReviews] = useState<Review[]>([])
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
@@ -58,12 +59,24 @@ export function HotelDetail() {
   useEffect(() => {
     if (!id || !dateRange?.from || !dateRange?.to) return
     setLoadingAvailability(true)
+    setSelectedRoomType(null) // Clear selection when dates change
     getAvailability({ hotelId: id, startDate: dateRange.from, endDate: dateRange.to })
       .then(setAvailability)
       .finally(() => setLoadingAvailability(false))
   }, [id, dateRange])
 
   const avgRating = useMemo(() => hotel?.reviewSummary.averageRating ?? 0, [hotel])
+
+  // Calculate number of nights and total price
+  const numberOfNights = useMemo(() => {
+    if (!dateRange?.from || !dateRange?.to) return 0
+    return differenceInDays(dateRange.to, dateRange.from)
+  }, [dateRange])
+
+  const totalPrice = useMemo(() => {
+    if (!selectedRoomType?.priceFrom || numberOfNights === 0) return null
+    return selectedRoomType.priceFrom * numberOfNights
+  }, [selectedRoomType, numberOfNights])
 
   const handleReserve = () => {
     if (!user) {
@@ -143,11 +156,42 @@ export function HotelDetail() {
               <CardTitle className="text-lg">Reserve your stay</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="text-sm text-muted-foreground">
-                Reserve after signing in. Pricing is mock-only in Phase 1.
-              </div>
-              <div className="text-2xl font-semibold">${hotel.priceFrom} / night</div>
-              <Button className="w-full" onClick={handleReserve}>
+              {selectedRoomType ? (
+                <>
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Selected: {selectedRoomType.type}</div>
+                    {dateRange?.from && (
+                      <div className="text-sm text-muted-foreground">
+                        Check-in: {format(dateRange.from, 'MMM d, yyyy')}
+                      </div>
+                    )}
+                    {dateRange?.to && (
+                      <div className="text-sm text-muted-foreground">
+                        Check-out: {format(dateRange.to, 'MMM d, yyyy')}
+                      </div>
+                    )}
+                  </div>
+                  {selectedRoomType.priceFrom !== null && selectedRoomType.priceFrom !== undefined ? (
+                    <div className="space-y-1">
+                      <div className="text-2xl font-semibold">
+                        {totalPrice !== null ? `$${totalPrice.toFixed(2)}` : `$${selectedRoomType.priceFrom} / night`}
+                      </div>
+                      {totalPrice !== null && numberOfNights > 0 && (
+                        <div className="text-sm text-muted-foreground">
+                          ${selectedRoomType.priceFrom} × {numberOfNights} {numberOfNights === 1 ? 'night' : 'nights'}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-lg font-semibold text-muted-foreground">Sold out</div>
+                  )}
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  Select a room type and dates to see pricing
+                </div>
+              )}
+              <Button className="w-full" onClick={handleReserve} disabled={!selectedRoomType || !user}>
                 Reserve
               </Button>
               <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
@@ -194,24 +238,41 @@ export function HotelDetail() {
                   </p>
                 )}
                 {!loadingAvailability &&
-                  availability.map((typeAvailability) => (
-                    <div key={typeAvailability.type} className="space-y-2">
-                      <h4 className="text-sm font-semibold">{typeAvailability.type}</h4>
-                      {typeAvailability.days.map((day) => (
-                        <div
-                          key={day.date}
-                          className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                        >
-                          <span className="text-muted-foreground">
-                            {format(new Date(day.date), 'EEE, MMM d')}
-                          </span>
-                          <span className="font-medium">
-                            {day.roomsAvailable > 0 ? `${day.roomsAvailable} rooms · $${day.price}` : 'Sold out'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
+                  availability.map((typeAvailability) => {
+                    const isSelected = selectedRoomType?.type === typeAvailability.type
+                    const isAvailable = typeAvailability.availableRooms !== undefined && typeAvailability.availableRooms > 0
+                    
+                    return (
+                      <div
+                        key={typeAvailability.type}
+                        onClick={() => isAvailable && setSelectedRoomType(typeAvailability)}
+                        className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'border-primary bg-primary/5'
+                            : isAvailable
+                            ? 'hover:bg-muted/50'
+                            : 'opacity-50 cursor-not-allowed'
+                        }`}
+                      >
+                        <h4 className="text-sm font-semibold">
+                          {typeAvailability.type}
+                          {typeAvailability.totalRooms !== undefined && (
+                            <> - {typeAvailability.totalRooms} {typeAvailability.totalRooms === 1 ? 'Room' : 'Rooms'}</>
+                          )}
+                          {typeAvailability.availableRooms !== undefined && typeAvailability.availableRooms > 0 && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              ({typeAvailability.availableRooms} available)
+                            </span>
+                          )}
+                        </h4>
+                        <span className="font-medium">
+                          {typeAvailability.priceFrom !== null && typeAvailability.priceFrom !== undefined
+                            ? `$${typeAvailability.priceFrom}`
+                            : 'Sold out'}
+                        </span>
+                      </div>
+                    )
+                  })}
               </div>
             </CardContent>
           </Card>

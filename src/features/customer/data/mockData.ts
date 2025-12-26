@@ -28,7 +28,9 @@ export type AvailabilityDay = {
 
 export type AvailabilityByType = {
   type: string
-  days: AvailabilityDay[]
+  totalRooms?: number
+  availableRooms?: number
+  priceFrom?: number | null
 }
 
 export type Review = {
@@ -51,13 +53,11 @@ export const mockHotels: Hotel[] = [
     priceFrom: 120,
     description:
       'Modern stay near the city center with skyline views, spa, and all-day dining.',
-    amenities: ['Free Wi-Fi', 'Spa', 'Pool', 'Airport shuttle', 'Gym', 'Breakfast'],
     images: [
       'https://images.unsplash.com/photo-1501117716987-c8e1ecb210af?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1507089947368-19c1da9775ae?auto=format&fit=crop&w=1200&q=80',
     ],
-    coordinates: { lat: 9.0108, lng: 38.7613 },
     reviewSummary: {
       averageRating: 4.6,
       totalReviews: 214,
@@ -73,13 +73,11 @@ export const mockHotels: Hotel[] = [
     priceFrom: 180,
     description:
       'Hilltop resort overlooking the highlands, curated tours, and local cuisine.',
-    amenities: ['Breakfast', 'Guided tours', 'Free Wi-Fi', 'Airport shuttle', 'Terrace'],
     images: [
       'https://images.unsplash.com/photo-1505764706515-aa95265c5abc?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
     ],
-    coordinates: { lat: 12.0333, lng: 39.0500 },
     reviewSummary: {
       averageRating: 4.8,
       totalReviews: 156,
@@ -95,13 +93,11 @@ export const mockHotels: Hotel[] = [
     priceFrom: 95,
     description:
       'Relaxed lakeside lodge with boat access, gardens, and sunset restaurant views.',
-    amenities: ['Lake access', 'Boat tours', 'Free Wi-Fi', 'Breakfast', 'Garden'],
     images: [
       'https://images.unsplash.com/photo-1502920514313-52581002a659?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1501117716987-c8e1ecb210af?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1200&q=80',
     ],
-    coordinates: { lat: 11.5990, lng: 37.3908 },
     reviewSummary: {
       averageRating: 4.4,
       totalReviews: 98,
@@ -117,13 +113,11 @@ export const mockHotels: Hotel[] = [
     priceFrom: 140,
     description:
       'Mountain lodge with guided treks, fireplaces, and panoramic canyon views.',
-    amenities: ['Guided hikes', 'Breakfast', 'Fireplace lounge', 'Free Wi-Fi', 'Shuttle'],
     images: [
       'https://images.unsplash.com/photo-1505761671935-60b3a7427bad?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=1200&q=80',
       'https://images.unsplash.com/photo-1462536943532-57a629f6cc60?auto=format&fit=crop&w=1200&q=80',
     ],
-    coordinates: { lat: 13.1670, lng: 38.0400 },
     reviewSummary: {
       averageRating: 4.7,
       totalReviews: 132,

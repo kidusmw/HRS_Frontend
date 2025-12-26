@@ -44,7 +44,7 @@ export function HotelCard({ hotel, onReserve, onView }: Props) {
             </p>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <div className="text-lg font-semibold">${hotel.priceFrom} / night</div>
+                <div className="text-lg font-semibold">View prices</div>
                 <div className="text-xs text-muted-foreground">
                   Avg. rating {hotel.reviewSummary.averageRating.toFixed(1)} ·{' '}
                   {hotel.reviewSummary.totalReviews} reviews
