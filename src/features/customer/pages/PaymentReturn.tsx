@@ -12,7 +12,17 @@ type IntentStatus = 'pending' | 'confirmed' | 'failed' | 'expired'
 export function PaymentReturn() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const txRef = searchParams.get('tx_ref')
+  const txRef =
+    searchParams.get('tx_ref') ||
+    searchParams.get('trx_ref') ||
+    searchParams.get('reference') ||
+    (() => {
+      try {
+        return sessionStorage.getItem('chapa_tx_ref')
+      } catch {
+        return null
+      }
+    })()
 
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus | null>(null)
   const [intentStatus, setIntentStatus] = useState<IntentStatus | null>(null)
@@ -40,12 +50,22 @@ export function PaymentReturn() {
 
         // If confirmed, stop polling
         if (status.intent_status === 'confirmed' && status.reservation_id) {
+          try {
+            sessionStorage.removeItem('chapa_tx_ref')
+          } catch {
+            // ignore
+          }
           setLoading(false)
           return
         }
 
         // If failed, stop polling
         if (status.intent_status === 'failed' || status.payment_status === 'failed') {
+          try {
+            sessionStorage.removeItem('chapa_tx_ref')
+          } catch {
+            // ignore
+          }
           setLoading(false)
           return
         }

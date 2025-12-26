@@ -119,6 +119,12 @@ export function HotelDetail() {
       })
 
       // Redirect to Chapa checkout
+      // Fallback: store tx_ref in case gateway doesn't append it to return_url
+      try {
+        sessionStorage.setItem('chapa_tx_ref', response.tx_ref)
+      } catch {
+        // ignore storage errors (private mode, etc.)
+      }
       window.location.href = response.checkout_url
     } catch (error: any) {
       console.error('Failed to create reservation intent:', error)

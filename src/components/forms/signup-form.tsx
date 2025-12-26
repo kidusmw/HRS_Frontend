@@ -99,7 +99,7 @@ export function SignupForm({
     }
 
     setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+    return Object.keys(newErrors ?? {}).length === 0
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
