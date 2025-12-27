@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { Filter, Plus, Search } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -27,8 +27,17 @@ export function Reservations() {
   const dialogs = useReservationDialogs()
   const walkIn = useWalkInForm()
 
+  const notifyError = useCallback((m: string) => toast.error(m), [])
+  const notifySuccess = useCallback((m: string) => toast.success(m), [])
+
+  const roomsNotify = useMemo(() => ({ error: notifyError }), [notifyError])
+  const reservationsNotify = useMemo(
+    () => ({ success: notifySuccess, error: notifyError }),
+    [notifySuccess, notifyError]
+  )
+
   const rooms = useRooms({
-    notify: { error: (m) => toast.error(m) },
+    notify: roomsNotify,
     availability: {
       enabled: dialogs.walkInDialogOpen,
       checkIn: walkIn.form.checkIn,
@@ -37,15 +46,14 @@ export function Reservations() {
     },
   })
 
+  const onAfterMutation = useCallback(async () => {
+    // Keep existing behavior: refresh rooms after reservation mutations that affect room status
+    await rooms.loadRooms()
+  }, [rooms.loadRooms])
+
   const reservationsState = useReservations({
-    notify: {
-      success: (m) => toast.success(m),
-      error: (m) => toast.error(m),
-    },
-    onAfterMutation: async () => {
-      // Keep existing behavior: refresh rooms after reservation mutations that affect room status
-      await rooms.loadRooms()
-    },
+    notify: reservationsNotify,
+    onAfterMutation,
   })
 
   // Preserve existing behavior: refresh rooms when filters change
