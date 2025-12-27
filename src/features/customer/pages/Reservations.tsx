@@ -4,7 +4,14 @@ import { Calendar, MapPin, CreditCard, CheckCircle2, Clock, XCircle } from 'luci
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { getMyReservations, type CustomerReservation } from '../api/customerApi'
+import {
+  createReview,
+  getMyReservations,
+  getMyReviews,
+  type CustomerReservation,
+  type MyReview,
+} from '../api/customerApi'
+import { ReservationReviewSection } from '../components/ReservationReviewSection'
 
 function getStatusBadge(status: string) {
   const statusLower = status.toLowerCase()
@@ -72,17 +79,42 @@ function getPaymentStatusBadge(paymentStatus: string, amountPaid: number, totalA
 
 export function Reservations() {
   const [reservations, setReservations] = useState<CustomerReservation[]>([])
+  const [reviewsByHotelId, setReviewsByHotelId] = useState<Record<string, MyReview>>({})
+  const [submittingHotelId, setSubmittingHotelId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
     setError(null)
-    getMyReservations()
-      .then((data) => setReservations(data))
+    Promise.all([getMyReservations(), getMyReviews()])
+      .then(([reservationData, reviewData]) => {
+        setReservations(reservationData)
+        const map: Record<string, MyReview> = {}
+        for (const r of reviewData) {
+          map[String(r.hotelId)] = r
+        }
+        setReviewsByHotelId(map)
+      })
       .catch(() => setError('Unable to load your reservations.'))
       .finally(() => setLoading(false))
   }, [])
+
+  const handleSubmitReview = async (args: { hotelId: number; rating: number; comment: string }) => {
+    setSubmittingHotelId(String(args.hotelId))
+    try {
+      const created = await createReview({
+        hotel_id: args.hotelId,
+        rating: args.rating,
+        review: args.comment,
+      })
+      setReviewsByHotelId((prev) => ({ ...prev, [String(args.hotelId)]: created }))
+    } catch (e: any) {
+      alert(e?.response?.data?.message || 'Failed to submit review. Please try again.')
+    } finally {
+      setSubmittingHotelId(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -220,6 +252,16 @@ export function Reservations() {
                     </div>
                   </div>
                 </div>
+
+                <ReservationReviewSection
+                  hotelId={reservation.hotelId}
+                  reservationStatus={reservation.status}
+                  existingReview={
+                    reservation.hotelId ? reviewsByHotelId[String(reservation.hotelId)] ?? null : null
+                  }
+                  isSubmitting={reservation.hotelId ? submittingHotelId === String(reservation.hotelId) : false}
+                  onSubmit={handleSubmitReview}
+                />
               </CardContent>
             </Card>
           ))
