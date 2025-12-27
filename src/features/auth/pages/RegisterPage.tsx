@@ -1,4 +1,4 @@
-import { SignupForm } from "@/components/forms/signup-form"
+import { SignupForm } from "@/features/auth/components/signup-form"
 import { GalleryVerticalEnd } from "lucide-react"
 import { Link } from "react-router-dom"
 
