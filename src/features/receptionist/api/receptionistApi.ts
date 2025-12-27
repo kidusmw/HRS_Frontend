@@ -75,6 +75,32 @@ export const getAvailableRooms = async (params: GetAvailableRoomsParams): Promis
   return response.data;
 };
 
+export interface GetUnavailableCheckInDatesParams {
+  room_type: string;
+  start: string; // YYYY-MM-DD
+  days?: number;
+}
+
+export const getUnavailableCheckInDates = async (
+  params: GetUnavailableCheckInDatesParams
+): Promise<{ data: string[] }> => {
+  const response = await api.get(`${BASE_URL}/availability/checkin-dates`, { params });
+  return response.data;
+};
+
+export interface GetUnavailableCheckOutDatesParams {
+  room_type: string;
+  check_in: string; // YYYY-MM-DD
+  days?: number;
+}
+
+export const getUnavailableCheckOutDates = async (
+  params: GetUnavailableCheckOutDatesParams
+): Promise<{ data: string[] }> => {
+  const response = await api.get(`${BASE_URL}/availability/checkout-dates`, { params });
+  return response.data;
+};
+
 export interface UpdateRoomStatusParams {
   status: 'available' | 'occupied' | 'maintenance' | 'unavailable';
 }

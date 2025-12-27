@@ -13,6 +13,7 @@ import { useReservations } from '../hooks/useReservations'
 import { useRooms } from '../hooks/useRooms'
 import { useWalkInForm } from '../hooks/useWalkInForm'
 import { useReservationDialogs } from '../hooks/useReservationDialogs'
+import { useWalkInUnavailableDates } from '../hooks/useWalkInUnavailableDates'
 import { ReservationsTable } from '../components/ReservationsTable'
 import { WalkInDialog } from '../components/WalkInDialog'
 import { CheckInDialog } from '../components/CheckInDialog'
@@ -44,6 +45,13 @@ export function Reservations() {
       checkOut: walkIn.form.checkOut,
       roomType: walkIn.form.roomType,
     },
+  })
+
+  const { unavailableCheckInDates, unavailableCheckOutDates } = useWalkInUnavailableDates({
+    enabled: dialogs.walkInDialogOpen,
+    roomType: walkIn.form.roomType,
+    checkIn: walkIn.form.checkIn,
+    days: 90,
   })
 
   const onAfterMutation = useCallback(async () => {
@@ -230,11 +238,15 @@ export function Reservations() {
         onOpenChange={dialogs.setWalkInDialogOpen}
         form={walkIn.form}
         onFieldChange={walkIn.setField}
+        roomTypes={Array.from(new Set(rooms.availableRooms.map((r) => r?.type).filter(Boolean))) as string[]}
         loadingDateFilteredRooms={rooms.loadingDateFilteredRooms}
         dateFilteredRooms={rooms.dateFilteredRooms}
+        unavailableCheckInDates={unavailableCheckInDates}
+        unavailableCheckOutDates={unavailableCheckOutDates}
         onSubmit={handleCreateWalkIn}
         submitDisabled={
           rooms.loadingDateFilteredRooms ||
+          !walkIn.form.roomType ||
           !walkIn.form.checkIn ||
           !walkIn.form.checkOut ||
           rooms.dateFilteredRooms.length === 0 ||

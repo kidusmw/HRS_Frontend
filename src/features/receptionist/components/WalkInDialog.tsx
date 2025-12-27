@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DatePicker } from '@/components/ui/date-picker'
 import type { ReceptionistRoom } from '../api/receptionistApi'
 import type { WalkInFormState } from '../hooks/useWalkInForm'
+import { format, startOfToday } from 'date-fns'
 
 type Props = {
   open: boolean
@@ -15,8 +16,12 @@ type Props = {
   form: WalkInFormState
   onFieldChange: <K extends keyof WalkInFormState>(key: K, value: WalkInFormState[K]) => void
 
+  roomTypes: string[]
   loadingDateFilteredRooms: boolean
   dateFilteredRooms: ReceptionistRoom[]
+
+  unavailableCheckInDates: string[]
+  unavailableCheckOutDates: string[]
 
   onSubmit: () => void
   submitDisabled: boolean
@@ -27,11 +32,18 @@ export function WalkInDialog({
   onOpenChange,
   form,
   onFieldChange,
+  roomTypes,
   loadingDateFilteredRooms,
   dateFilteredRooms,
+  unavailableCheckInDates,
+  unavailableCheckOutDates,
   onSubmit,
   submitDisabled,
 }: Props) {
+  const today = startOfToday()
+  const disabledCheckIn = new Set(unavailableCheckInDates)
+  const disabledCheckOut = new Set(unavailableCheckOutDates)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -72,6 +84,25 @@ export function WalkInDialog({
             />
           </div>
 
+          <div className="grid gap-2">
+            <Label htmlFor="walkin-room-type">Room Type *</Label>
+            <Select value={form.roomType || ''} onValueChange={(v) => onFieldChange('roomType', v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select room type" />
+              </SelectTrigger>
+              <SelectContent>
+                {roomTypes.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!form.roomType ? (
+              <div className="text-xs text-muted-foreground">Select a room type to enable date selection.</div>
+            ) : null}
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <Label htmlFor="walkin-checkin">Check-in Date *</Label>
@@ -80,6 +111,12 @@ export function WalkInDialog({
                 value={form.checkIn}
                 onChange={(value) => onFieldChange('checkIn', value)}
                 placeholder="Select check-in date"
+                disabled={!form.roomType}
+                calendarDisabled={(date) => {
+                  if (date < today) return true
+                  const key = format(date, 'yyyy-MM-dd')
+                  return disabledCheckIn.has(key)
+                }}
               />
             </div>
             <div className="grid gap-2">
@@ -89,11 +126,24 @@ export function WalkInDialog({
                 value={form.checkOut}
                 onChange={(value) => onFieldChange('checkOut', value)}
                 placeholder="Select check-out date"
+                disabled={!form.roomType || !form.checkIn}
+                calendarDisabled={(date) => {
+                  if (date < today) return true
+                  if (!form.checkIn) return true
+                  const key = format(date, 'yyyy-MM-dd')
+                  // Must be strictly after check-in
+                  if (key <= form.checkIn) return true
+                  return disabledCheckOut.has(key)
+                }}
               />
             </div>
           </div>
 
-          {!form.checkIn || !form.checkOut ? (
+          {!form.roomType ? (
+            <div className="p-3 bg-muted rounded-md text-sm text-muted-foreground">
+              Please select a room type to see availability.
+            </div>
+          ) : !form.checkIn || !form.checkOut ? (
             <div className="p-3 bg-muted rounded-md text-sm text-muted-foreground">
               Please select both check-in and check-out dates to see available rooms.
             </div>
@@ -106,51 +156,27 @@ export function WalkInDialog({
               No rooms available for the selected dates. Please choose different dates.
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="walkin-room-type">Room Type</Label>
-                <Select
-                  value={form.roomType || 'all'}
-                  onValueChange={(v) => onFieldChange('roomType', v === 'all' ? '' : v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All types" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    {Array.from(new Set(dateFilteredRooms.map((r) => r?.type).filter(Boolean))).map(
-                      (type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="walkin-room">Room Number *</Label>
-                <Select
-                  value={form.roomNumber}
-                  onValueChange={(v) => onFieldChange('roomNumber', v)}
-                  disabled={dateFilteredRooms.length === 0}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select room" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dateFilteredRooms
-                      .filter((room) => room && (!form.roomType || room.type === form.roomType))
-                      .map((room) => (
-                        <SelectItem key={room.id} value={room.id.toString()}>
-                          {room.number ? `Room ${room.number}` : `Room ${room.id}`} - {room.type || 'N/A'} (
-                          {room.price?.toLocaleString() || '0'} ETB/night)
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="walkin-room">Room Number *</Label>
+              <Select
+                value={form.roomNumber}
+                onValueChange={(v) => onFieldChange('roomNumber', v)}
+                disabled={dateFilteredRooms.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select room" />
+                </SelectTrigger>
+                <SelectContent>
+                  {dateFilteredRooms
+                    .filter((room) => room && (!form.roomType || room.type === form.roomType))
+                    .map((room) => (
+                      <SelectItem key={room.id} value={room.id.toString()}>
+                        {room.number ? `Room ${room.number}` : `Room ${room.id}`} - {room.type || 'N/A'} (
+                        {room.price?.toLocaleString() || '0'} ETB/night)
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
