@@ -243,6 +243,7 @@ export async function getPaymentStatus(txRef: string): Promise<PaymentStatusResp
 
 export interface CustomerReservation {
   id: number
+  hotelId: number | null
   hotelName: string
   roomType: string
   roomNumber: number | null
@@ -261,6 +262,31 @@ export async function getMyReservations(): Promise<CustomerReservation[]> {
     '/customer/reservations'
   )
 
+  return response.data.data
+}
+
+export interface MyReview {
+  id: string
+  hotelId: string
+  rating: number
+  comment: string
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
+export async function getMyReviews(): Promise<MyReview[]> {
+  const response = await api.get<{ data: MyReview[] }>('/customer/reviews/mine')
+  return response.data.data
+}
+
+export interface CreateReviewPayload {
+  hotel_id: number
+  rating: number
+  review: string
+}
+
+export async function createReview(payload: CreateReviewPayload): Promise<MyReview> {
+  const response = await api.post<{ message: string; data: MyReview }>('/customer/reviews', payload)
   return response.data.data
 }
 
