@@ -44,3 +44,11 @@ export interface AuthResponse {
   token_type?: string;
   message?: string;
 }
+
+export type GoogleOAuthCallbackResponse = {
+  message?: string
+  user?: User
+  access_token?: string
+  token_type?: string
+  error?: string
+}
