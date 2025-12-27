@@ -19,9 +19,9 @@ export function HotelImageGallery({ images, hotelName }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border bg-muted/10 shadow-sm">
+    <div className="overflow-hidden rounded-2xl border bg-muted/10 shadow-sm md:h-[420px]">
       {/* Top collage */}
-      <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2">
+      <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 md:h-full">
         {/* Main */}
         <div className="md:col-span-3 md:row-span-2">
           <img
@@ -55,7 +55,7 @@ export function HotelImageGallery({ images, hotelName }: Props) {
 
       {/* Bottom thumbs */}
       {thumbImages.length > 0 && (
-        <div className="grid grid-cols-3 border-t md:grid-cols-5">
+        <div className="grid grid-cols-3 border-t md:hidden">
           {thumbImages.map((src, idx) => {
             const isLast = idx === thumbImages.length - 1
             const showOverlay = isLast && extraThumbCount > 0

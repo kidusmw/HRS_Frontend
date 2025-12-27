@@ -64,6 +64,43 @@ export const getRooms = async (params?: GetRoomsParams): Promise<RoomsResponse> 
   return response.data;
 };
 
+export interface GetAvailableRoomsParams {
+  check_in: string;
+  check_out: string;
+  room_type?: string;
+}
+
+export const getAvailableRooms = async (params: GetAvailableRoomsParams): Promise<{ data: ReceptionistRoom[] }> => {
+  const response = await api.get(`${BASE_URL}/rooms/available`, { params });
+  return response.data;
+};
+
+export interface GetUnavailableCheckInDatesParams {
+  room_type: string;
+  start: string; // YYYY-MM-DD
+  days?: number;
+}
+
+export const getUnavailableCheckInDates = async (
+  params: GetUnavailableCheckInDatesParams
+): Promise<{ data: string[] }> => {
+  const response = await api.get(`${BASE_URL}/availability/checkin-dates`, { params });
+  return response.data;
+};
+
+export interface GetUnavailableCheckOutDatesParams {
+  room_type: string;
+  check_in: string; // YYYY-MM-DD
+  days?: number;
+}
+
+export const getUnavailableCheckOutDates = async (
+  params: GetUnavailableCheckOutDatesParams
+): Promise<{ data: string[] }> => {
+  const response = await api.get(`${BASE_URL}/availability/checkout-dates`, { params });
+  return response.data;
+};
+
 export interface UpdateRoomStatusParams {
   status: 'available' | 'occupied' | 'maintenance' | 'unavailable';
 }
@@ -90,6 +127,8 @@ export interface ReceptionistReservation {
   special_requests?: string | null;
   created_at: string;
   updated_at: string;
+  amount_paid?: number;
+  currency?: string;
   room?: {
     id: number;
     type: string;

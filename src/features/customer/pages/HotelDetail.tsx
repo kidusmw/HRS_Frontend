@@ -21,6 +21,7 @@ import { HotelImageGallery } from '../components/HotelImageGallery'
 import { OverviewCard } from '../components/OverviewCard'
 import { ReserveCard } from '../components/ReserveCard'
 import type { AvailabilityByType, Hotel, Review } from '../types'
+import { useUnavailableCustomerDates } from '../hooks/useUnavailableCustomerDates'
 
 export function HotelDetail() {
   const { id } = useParams<{ id: string }>()
@@ -70,6 +71,14 @@ export function HotelDetail() {
       .then(setAvailability)
       .finally(() => setLoadingAvailability(false))
   }, [id, dateRange])
+
+  const { unavailableCheckInDates, unavailableCheckOutDates } = useUnavailableCustomerDates({
+    enabled: Boolean(id) && Boolean(selectedRoomType?.type),
+    hotelId: String(id ?? ''),
+    roomType: selectedRoomType?.type ?? '',
+    checkIn: dateRange?.from,
+    days: 90,
+  })
 
   const avgRating = useMemo(() => hotel?.reviewSummary.averageRating ?? 0, [hotel])
 
@@ -175,15 +184,16 @@ export function HotelDetail() {
       <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
         <HotelHeader hotel={hotel} avgRating={avgRating} />
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="md:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[60%_40%] lg:items-stretch">
+          {/* Left column - 60% */}
+          <div className="min-w-0 space-y-6">
             <HotelImageGallery images={hotel.images ?? []} hotelName={hotel.name} />
             <OverviewCard hotel={hotel} />
             <GuestReviewsCard reviews={reviews} />
           </div>
 
-          {/* Right rail: keep Reserve + Availability close and sticky together */}
-          <div className="md:col-span-1 self-start sticky top-4 space-y-3">
+          {/* Right column - 40% */}
+          <div className="min-w-0 space-y-4 lg:sticky lg:top-4">
             <ReserveCard
               selectedRoomType={selectedRoomType}
               dateRange={dateRange}
@@ -191,6 +201,7 @@ export function HotelDetail() {
               numberOfNights={numberOfNights}
               isProcessingPayment={isProcessingPayment}
               onPayClick={handlePayToConfirm}
+              className="lg:h-[420px]"
             />
             <AvailabilityCard
               dateRange={dateRange}
@@ -199,6 +210,8 @@ export function HotelDetail() {
               loadingAvailability={loadingAvailability}
               selectedRoomType={selectedRoomType}
               onRoomTypeSelect={setSelectedRoomType}
+              unavailableCheckInDates={unavailableCheckInDates}
+              unavailableCheckOutDates={unavailableCheckOutDates}
             />
           </div>
         </div>

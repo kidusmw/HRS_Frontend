@@ -68,7 +68,7 @@ function formatPaymentMethod(method: PaymentMethod): string {
 function formatCurrency(amount: number, currency: string): string {
   const formatter = new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: currency || 'USD',
+    currency: currency || 'ETB',
   });
   return formatter.format(amount);
 }
@@ -407,7 +407,7 @@ export function Payments() {
           <CardHeader className="pb-2">
             <CardDescription>Total Revenue</CardDescription>
             <CardTitle className="text-2xl">
-              {formatCurrency(summary.totalRevenue, payments[0]?.currency || 'USD')}
+              {formatCurrency(summary.totalRevenue, payments[0]?.currency || 'ETB')}
             </CardTitle>
           </CardHeader>
         </Card>

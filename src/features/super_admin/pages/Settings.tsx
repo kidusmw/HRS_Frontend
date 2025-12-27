@@ -96,7 +96,7 @@ export function Settings() {
     try {
       const payload: any = {
         systemName: values.systemName,
-        defaultCurrency: 'USD', // Always USD
+        defaultCurrency: 'ETB', // Always ETB
         defaultTimezone: 'UTC', // Always UTC
       };
 
@@ -250,11 +250,11 @@ export function Settings() {
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Default Currency</label>
                   <div className="flex items-center gap-2 p-3 border rounded-md bg-muted">
-                    <span className="text-sm font-semibold">USD</span>
-                    <span className="text-xs text-muted-foreground">(US Dollar)</span>
+                    <span className="text-sm font-semibold">ETB</span>
+                    <span className="text-xs text-muted-foreground">(Ethiopian Birr)</span>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    System currency is fixed to USD
+                    System currency is fixed to ETB
                   </p>
                 </div>
 
@@ -303,7 +303,7 @@ export function Settings() {
                 {form.watch('systemName') || 'System Name'}
               </h3>
               <p className="text-sm text-muted-foreground">
-                Default Currency: USD | Default Timezone: UTC
+                Default Currency: ETB | Default Timezone: UTC
               </p>
             </div>
           </div>

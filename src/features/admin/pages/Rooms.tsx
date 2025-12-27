@@ -105,7 +105,7 @@ const createColumns = (
         <span className="font-medium">
           {price.toLocaleString('en-US', {
             style: 'currency',
-            currency: 'USD',
+            currency: 'ETB',
           })}
         </span>
       );

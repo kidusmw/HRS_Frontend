@@ -1,17 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { CreditCard, Loader2 } from 'lucide-react';
-import { getSystemSettings, updateSystemSettings } from '../api/superAdminApi';
-import type { SystemSettingsDto } from '@/types/admin';
+import { CreditCard } from 'lucide-react';
+import { getSystemSettings } from '../api/superAdminApi';
 
 export function PaymentOptions() {
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [settings, setSettings] = useState<SystemSettingsDto | null>(null);
 
   useEffect(() => {
     fetchSettings();
@@ -20,36 +16,14 @@ export function PaymentOptions() {
   const fetchSettings = async () => {
     try {
       setIsLoading(true);
-      const response = await getSystemSettings();
-      setSettings(response.data);
+      // Fetch to validate access and keep page consistent with backend settings,
+      // even though payment methods are currently read-only.
+      await getSystemSettings();
     } catch (error) {
       console.error(error);
       toast.error('Failed to load payment options');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleToggle = async (key: 'chapaEnabled' | 'stripeEnabled' | 'telebirrEnabled', value: boolean) => {
-    if (!settings) return;
-
-    // Don't allow toggling Stripe or Telebirr (future updates)
-    if (key === 'stripeEnabled' || key === 'telebirrEnabled') {
-      toast.info('This payment method will be available in future updates');
-      return;
-    }
-
-    try {
-      setIsSaving(true);
-      const updatedSettings = { ...settings, [key]: value };
-      await updateSystemSettings({ [key]: value });
-      setSettings(updatedSettings);
-      toast.success('Payment option updated successfully');
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to update payment option');
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -109,13 +83,7 @@ export function PaymentOptions() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              {isSaving && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-              <Switch
-                id="chapa-toggle"
-                checked={settings?.chapaEnabled ?? false}
-                onCheckedChange={(checked) => handleToggle('chapaEnabled', checked)}
-                disabled={isSaving}
-              />
+              <span className="text-sm font-medium text-green-700">Always enabled</span>
             </div>
           </div>
 
@@ -124,7 +92,7 @@ export function PaymentOptions() {
           {/* Stripe */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="stripe-toggle" className="text-base font-medium">
+              <Label className="text-base font-medium">
                 Stripe
               </Label>
               <p className="text-sm text-muted-foreground">
@@ -132,11 +100,7 @@ export function PaymentOptions() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Switch
-                id="stripe-toggle"
-                checked={false}
-                disabled={true}
-              />
+              <span className="text-sm text-muted-foreground">Coming soon</span>
             </div>
           </div>
 
@@ -145,7 +109,7 @@ export function PaymentOptions() {
           {/* Telebirr */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label htmlFor="telebirr-toggle" className="text-base font-medium">
+              <Label className="text-base font-medium">
                 Telebirr
               </Label>
               <p className="text-sm text-muted-foreground">
@@ -153,11 +117,7 @@ export function PaymentOptions() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Switch
-                id="telebirr-toggle"
-                checked={false}
-                disabled={true}
-              />
+              <span className="text-sm text-muted-foreground">Coming soon</span>
             </div>
           </div>
         </CardContent>

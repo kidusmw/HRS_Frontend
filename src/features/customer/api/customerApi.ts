@@ -143,6 +143,46 @@ export async function getAvailability(options: {
   return response.data.data
 }
 
+export async function getUnavailableCustomerCheckInDates(options: {
+  hotelId: string
+  roomType: string
+  start: Date
+  days?: number
+}): Promise<string[]> {
+  const response = await api.get<{ data: string[] }>(
+    `/customer/hotels/${options.hotelId}/availability/checkin-dates`,
+    {
+      params: {
+        room_type: options.roomType,
+        start: format(options.start, 'yyyy-MM-dd'),
+        days: options.days ?? 90,
+      },
+    }
+  )
+
+  return response.data.data
+}
+
+export async function getUnavailableCustomerCheckOutDates(options: {
+  hotelId: string
+  roomType: string
+  checkIn: Date
+  days?: number
+}): Promise<string[]> {
+  const response = await api.get<{ data: string[] }>(
+    `/customer/hotels/${options.hotelId}/availability/checkout-dates`,
+    {
+      params: {
+        room_type: options.roomType,
+        check_in: format(options.checkIn, 'yyyy-MM-dd'),
+        days: options.days ?? 90,
+      },
+    }
+  )
+
+  return response.data.data
+}
+
 export async function getReviews(hotelId: string): Promise<Review[]> {
   const response = await api.get<{ data: ApiReview[]; meta: any }>(
     `/customer/hotels/${hotelId}/reviews`
