@@ -1,5 +1,5 @@
 import { api } from '@/lib/axios';
-import type { LoginCredentials, RegisterData, AuthResponse, User } from '@/types/auth';
+import type { LoginCredentials, RegisterData, AuthResponse, User, GoogleOAuthCallbackResponse } from '@/types/auth';
 import { mapUserDto } from '@/features/auth/mappers/userMapper';
 
 export const registerUser = async (data: RegisterData): Promise<AuthResponse> => {
@@ -28,6 +28,22 @@ export const getGoogleRedirectUrl = async (): Promise<{ redirect_url: string }> 
   const response = await api.get('/auth/google/redirect');
   return response.data;
 };
+
+export async function exchangeGoogleOAuthCode(params: {
+  code: string
+  state?: string | null
+}): Promise<{ ok: boolean; data: GoogleOAuthCallbackResponse }> {
+  try {
+    const response = await api.get<GoogleOAuthCallbackResponse>('/auth/google/callback', {
+      params: { code: params.code, state: params.state ?? '' },
+    })
+    return { ok: true, data: response.data }
+  } catch (err: any) {
+    const status = err?.response?.status
+    const data = (err?.response?.data ?? {}) as GoogleOAuthCallbackResponse
+    return { ok: Boolean(status), data }
+  }
+}
 
 export const forgotPassword = async (email: string): Promise<{ message: string }> => {
   const response = await api.post('/password/forgot', { email });
