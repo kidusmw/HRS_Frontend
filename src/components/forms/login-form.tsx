@@ -63,6 +63,8 @@ export function LoginForm({
       } else if (user.role === 'manager') {
         // Route manager users to manager dashboard
         navigate('/manager/dashboard')
+      } else if (user.role === 'receptionist') {
+        navigate('/receptionist/dashboard')
       } else {
         // Route other users to regular dashboard
         navigate('/')

@@ -64,6 +64,17 @@ export const getRooms = async (params?: GetRoomsParams): Promise<RoomsResponse> 
   return response.data;
 };
 
+export interface GetAvailableRoomsParams {
+  check_in: string;
+  check_out: string;
+  room_type?: string;
+}
+
+export const getAvailableRooms = async (params: GetAvailableRoomsParams): Promise<{ data: ReceptionistRoom[] }> => {
+  const response = await api.get(`${BASE_URL}/rooms/available`, { params });
+  return response.data;
+};
+
 export interface UpdateRoomStatusParams {
   status: 'available' | 'occupied' | 'maintenance' | 'unavailable';
 }
@@ -90,6 +101,8 @@ export interface ReceptionistReservation {
   special_requests?: string | null;
   created_at: string;
   updated_at: string;
+  amount_paid?: number;
+  currency?: string;
   room?: {
     id: number;
     type: string;

@@ -47,12 +47,12 @@ export function ReserveCard({
               <div className="space-y-1">
                 <div className="text-2xl font-semibold">
                   {totalPrice !== null
-                    ? `$${totalPrice.toFixed(2)}`
-                    : `$${selectedRoomType.priceFrom} / night`}
+                    ? `${totalPrice.toFixed(2)} ETB`
+                    : `${selectedRoomType.priceFrom} ETB / night`}
                 </div>
                 {totalPrice !== null && numberOfNights > 0 && (
                   <div className="text-sm text-muted-foreground">
-                    ${selectedRoomType.priceFrom} × {numberOfNights}{' '}
+                    {selectedRoomType.priceFrom} ETB × {numberOfNights}{' '}
                     {numberOfNights === 1 ? 'night' : 'nights'}
                   </div>
                 )}
