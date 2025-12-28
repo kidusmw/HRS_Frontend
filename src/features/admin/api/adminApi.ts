@@ -11,6 +11,8 @@ import type {
   RoomImage,
   NotificationItem,
 } from '@/types/admin';
+import type { GetRoomsQueryDto } from './dtos/roomsDto'
+import { toGetRoomsParams } from './dtos/roomsDto'
 
 const BASE_URL = '/admin';
 
@@ -196,12 +198,12 @@ export interface GetRoomsParams {
   page?: number;
   perPage?: number;
 }
-
-export const getRooms = async (params?: GetRoomsParams): Promise<{
+export const getRooms = async (dto?: GetRoomsQueryDto): Promise<{
   data: RoomListItem[];
   links: unknown;
   meta: unknown;
 }> => {
+  const params = toGetRoomsParams(dto);
   const response = await api.get(`${BASE_URL}/rooms`, { params });
   return response.data;
 };
