@@ -24,6 +24,7 @@ import { Switch } from '@/components/ui/switch';
 import type { UserListItem, Role } from '@/types/admin';
 import { createUser, updateUser, getHotels } from '../api/superAdminApi';
 import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
 
 const userFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -58,6 +59,7 @@ function normalizeRole(role: string | undefined): 'admin' | 'super_admin' {
 export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const isEditing = !!user;
   const [hotels, setHotels] = useState<{ id: number; name: string }[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const fetchHotels = async () => {
@@ -350,11 +352,22 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Enter password"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Enter password"
+                          {...field}
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                          onClick={() => setShowPassword((v) => !v)}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </FormControl>
                     <FormDescription>
                       Must be at least 8 characters long

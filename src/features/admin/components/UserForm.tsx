@@ -28,6 +28,7 @@ import {
   getUsers,
 } from '../api/adminApi';
 import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
 
 const userFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -64,6 +65,7 @@ const roles: Array<'receptionist' | 'manager'> = ['receptionist', 'manager'];
 export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const isEditing = !!user;
   const [managers, setManagers] = useState<UserListItem[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -319,11 +321,22 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
                   {isEditing ? 'New Password (leave blank to keep current)' : 'Password'}
                 </FormLabel>
                 <FormControl>
-                  <Input
-                    type="password"
-                    placeholder={isEditing ? 'Leave blank to keep current password' : 'Enter password'}
-                    {...field}
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder={isEditing ? 'Leave blank to keep current password' : 'Enter password'}
+                      {...field}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </FormControl>
                 <FormDescription>
                   {isEditing
