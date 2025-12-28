@@ -15,7 +15,7 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { getDashboardMetrics, getNotifications, getLogs } from '../api/superAdminApi';
+import { getDashboardMetrics, getLogs, getNotifications } from '../api';
 import { toast } from 'sonner';
 
 

@@ -18,7 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SystemSettingsDto } from '@/types/admin';
-import { getSystemSettings, updateSystemSettings } from '../api/superAdminApi';
+import { getSystemSettings, updateSystemSettings } from '../api';
 
 const settingsFormSchema = z.object({
   systemName: z.string().min(1, 'System name is required'),

@@ -43,7 +43,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import type { AuditLogItem } from '@/types/admin';
-import { getLogs, getUsers, getHotels } from '../api/superAdminApi';
+import { getHotels, getLogs, getUsers } from '../api';
 
 
 function getActionBadgeVariant(action: string) {

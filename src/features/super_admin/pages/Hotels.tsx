@@ -48,7 +48,7 @@ import {
 // Note: Using Dialog instead of AlertDialog if alert-dialog doesn't exist
 import { HotelForm } from '@/features/super_admin/components/HotelForm';
 import type { HotelListItem } from '@/types/admin';
-import { getHotels, deleteHotel } from '../api/superAdminApi';
+import { deleteHotel, getHotels } from '../api';
 import { toast } from 'sonner';
 
 const createColumns = (

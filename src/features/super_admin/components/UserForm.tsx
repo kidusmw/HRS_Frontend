@@ -22,7 +22,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import type { UserListItem, Role } from '@/types/admin';
-import { createUser, updateUser, getHotels } from '../api/superAdminApi';
+import { createUser, getHotels, updateUser } from '../api';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -47,12 +47,9 @@ interface UserFormProps {
 
 const roles: Role[] = ['admin', 'super_admin'];
 
-// Helper function to normalize role - convert receptionist/manager to admin
-function normalizeRole(role: string | undefined): 'admin' | 'super_admin' {
-  if (role === 'super_admin' || role === 'superadmin') {
-    return 'super_admin';
-  }
-  // Convert receptionist, manager, or any other role to admin
+function getInitialRole(role: string | undefined): 'admin' | 'super_admin' {
+  if (role === 'super_admin' || role === 'superadmin') return 'super_admin';
+  if (role === 'admin') return 'admin';
   return 'admin';
 }
 
@@ -82,10 +79,10 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
       // If editing a client, keep their role as admin (clients can't be edited via this form)
       // Note: client role is not in the schema, but we handle it in defaultValues
       // The backend will prevent changing TO client or creating clients
-      // Also normalize receptionist/manager roles to admin
+      // If backend returns a role not editable in this form, default to ADMIN and show a warning.
       role: user?.role && user.role !== 'client' && roles.includes(user.role as Role)
         ? (user.role as 'admin' | 'super_admin')
-        : normalizeRole(user?.role),
+        : getInitialRole(user?.role),
       hotelId: user?.hotelId || null,
       phoneNumber: user?.phoneNumber || '',
       password: '',
@@ -96,6 +93,7 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
 
   // Use a ref to track the user ID to prevent unnecessary resets
   const userIdRef = useRef<number | null>(null);
+  const warnedUnsupportedRoleRef = useRef(false);
 
   useEffect(() => {
     const currentUserId = user?.id ?? null;
@@ -103,15 +101,27 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
     // Only reset if the user ID actually changed (prevents reset on every render)
     if (userIdRef.current !== currentUserId) {
       userIdRef.current = currentUserId;
+      warnedUnsupportedRoleRef.current = false;
 
       if (user) {
+        if (
+          !warnedUnsupportedRoleRef.current &&
+          user.role &&
+          user.role !== 'client' &&
+          !roles.includes(user.role as Role) &&
+          user.role !== 'superadmin'
+        ) {
+          warnedUnsupportedRoleRef.current = true;
+          toast.error(`This user has role "${user.role}", which isn't editable here. Defaulting to ADMIN.`);
+        }
+
         // Reset all form fields with fresh user data
         form.reset({
           name: user.name || '',
           email: user.email || '',
           role: user.role && user.role !== 'client' && roles.includes(user.role as Role)
             ? (user.role as 'admin' | 'super_admin')
-            : normalizeRole(user.role),
+            : getInitialRole(user.role),
           hotelId: user.hotelId || null,
           phoneNumber: user.phoneNumber || '',
           password: '',

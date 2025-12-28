@@ -39,13 +39,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import type { BackupItem } from '@/types/admin';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {
-  getBackups,
-  runFullBackup,
-  runHotelBackup,
-  downloadBackup,
-  getHotels,
-} from '../api/superAdminApi';
+import { downloadBackup, getBackups, getHotels, runFullBackup, runHotelBackup } from '../api';
 
 
 function formatFileSize(bytes: number | null | undefined): string {
