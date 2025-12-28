@@ -104,12 +104,13 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
       warnedUnsupportedRoleRef.current = false;
 
       if (user) {
+        const rawRole = String(user.role);
         if (
           !warnedUnsupportedRoleRef.current &&
           user.role &&
-          user.role !== 'client' &&
+          rawRole !== 'client' &&
           !roles.includes(user.role as Role) &&
-          user.role !== 'superadmin'
+          rawRole !== 'superadmin'
         ) {
           warnedUnsupportedRoleRef.current = true;
           toast.error(`This user has role "${user.role}", which isn't editable here. Defaulting to ADMIN.`);
