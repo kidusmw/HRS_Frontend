@@ -20,7 +20,6 @@ type Props = {
 export function EditReservationDialog({
   open,
   onOpenChange,
-  reservation,
   allRooms,
   form,
   onFormChange,

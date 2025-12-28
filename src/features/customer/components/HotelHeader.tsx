@@ -19,7 +19,6 @@ export function HotelHeader({ hotel, avgRating }: Props) {
             {avgRating.toFixed(1)} ({hotel.reviewSummary.totalReviews} reviews)
           </span>
           <Badge variant="outline">{hotel.city}</Badge>
-          <Badge variant="secondary">Mock data</Badge>
         </div>
       </div>
       <div className="text-sm text-muted-foreground flex items-center gap-2">

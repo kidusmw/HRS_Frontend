@@ -631,7 +631,7 @@ export function Settings() {
                     <FormItem>
                       <FormLabel>Check-in Time</FormLabel>
                       <FormControl>
-                        <Input type="time" {...field} />
+                        <Input type="time" {...field} disabled />
                       </FormControl>
                       <FormDescription>
                         Default check-in time for guests
@@ -648,7 +648,7 @@ export function Settings() {
                     <FormItem>
                       <FormLabel>Check-out Time</FormLabel>
                       <FormControl>
-                        <Input type="time" {...field} />
+                        <Input type="time" {...field} disabled />
                       </FormControl>
                       <FormDescription>
                         Default check-out time for guests
@@ -673,6 +673,7 @@ export function Settings() {
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value, 10) || 0)}
                         value={field.value || ''}
+                        disabled
                       />
                     </FormControl>
                     <FormDescription>
@@ -682,6 +683,10 @@ export function Settings() {
                   </FormItem>
                 )}
               />
+
+              <p className="text-sm text-muted-foreground">
+                These operational settings will be changeable in future versions.
+              </p>
             </CardContent>
           </Card>
 

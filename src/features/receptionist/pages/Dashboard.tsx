@@ -29,12 +29,9 @@ export function Dashboard() {
       try {
         setLoading(true);
         const today = new Date().toISOString().split('T')[0];
-        
-        console.log('[Dashboard] Loading dashboard data, today:', today);
-        
+
         // Load dashboard metrics
         const metricsData = await getDashboardMetrics();
-        console.log('[Dashboard] Metrics data:', metricsData);
         setMetrics(metricsData);
 
         // Load today's arrivals
@@ -46,8 +43,6 @@ export function Dashboard() {
           date_to: today,
           per_page: 100,
         });
-        console.log('[Dashboard] Arrivals API response:', arrivalsData);
-        console.log('[Dashboard] Arrivals raw data:', arrivalsData.data);
         
         // Normalize dates for comparison - extract just the date part
         // Show arrivals that are checking in today and are pending or confirmed
@@ -57,20 +52,8 @@ export function Dashboard() {
           const isToday = checkInDate === today;
           const isRelevantStatus = ['pending', 'confirmed'].includes(r.status);
           const matches = isToday && isRelevantStatus;
-          console.log('[Dashboard] Arrival filter:', {
-            reservationId: r.id,
-            checkIn: r.check_in,
-            normalizedCheckIn: checkInDate,
-            today,
-            status: r.status,
-            isWalkIn: (r as any).is_walk_in ?? (r as any).isWalkIn ?? 'not found',
-            isToday,
-            isRelevantStatus,
-            matches,
-          });
           return matches;
         });
-        console.log('[Dashboard] Filtered arrivals:', arrivals);
         setTodayArrivals(arrivals);
 
         // Load today's departures (checked-in guests with check-out today)
@@ -78,36 +61,22 @@ export function Dashboard() {
           status: 'checked_in',
           per_page: 100,
         });
-        console.log('[Dashboard] Departures API response:', departuresData);
-        console.log('[Dashboard] Departures raw data:', departuresData.data);
         
         const departures = (departuresData.data || []).filter((r) => {
           const checkOutDate = r.check_out?.split('T')[0] || r.check_out;
           const matches = checkOutDate === today && r.status === 'checked_in';
-          console.log('[Dashboard] Departure filter:', {
-            reservationId: r.id,
-            checkOut: r.check_out,
-            normalizedCheckOut: checkOutDate,
-            today,
-            status: r.status,
-            matches,
-          });
           return matches;
         });
-        console.log('[Dashboard] Filtered departures:', departures);
         setTodayDepartures(departures);
 
         // Get pending and confirmed counts
         const allReservations = await getReservations({ status: 'all', per_page: 100 });
-        console.log('[Dashboard] All reservations:', allReservations.data);
         const pending = (allReservations.data || []).filter((r) => r.status === 'pending').length;
         const confirmed = (allReservations.data || []).filter((r) => r.status === 'confirmed').length;
-        console.log('[Dashboard] Pending count:', pending, 'Confirmed count:', confirmed);
         setPendingCount(pending);
         setConfirmedCount(confirmed);
       } catch (error: any) {
         console.error('[Dashboard] Failed to load dashboard data:', error);
-        console.error('[Dashboard] Error details:', error.response?.data);
         toast.error(error.response?.data?.message || 'Failed to load dashboard data');
       } finally {
         setLoading(false);

@@ -3,19 +3,11 @@ import { FileText, BarChart2, Download, FileDown } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getReports, type ReportRange } from '@/features/manager/api/managerApi';
 import { toast } from 'sonner';
 import { useEffect } from 'react';
 import { downloadReportAsExcel } from '@/lib/reportToExcel';
-
-const predefinedReports = [
-  { id: 'daily-occupancy', title: 'Daily Occupancy Report', description: 'Occupancy, ADR, RevPAR snapshot' },
-  { id: 'revenue-room-type', title: 'Revenue by Room Type', description: 'Revenue split by room class' },
-  { id: 'booking-source', title: 'Booking Source Breakdown', description: 'OTA vs direct vs walk-in' },
-  { id: 'cancellation', title: 'Cancellation Trends', description: 'Cancel rate, lead time impact' },
-];
 
 export function Reports() {
   const [range, setRange] = useState<ReportRange>('last_7_days');

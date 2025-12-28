@@ -1,12 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
-  type ColumnFiltersState,
 } from '@tanstack/react-table';
 import type { ColumnDef, SortingState } from '@tanstack/react-table';
 import {
@@ -186,14 +183,23 @@ const createColumns = (
 export function Rooms() {
 
   const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = useState('');
+  const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<RoomListItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [rooms, setRooms] = useState<RoomListItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [perPage] = useState(15);
+  const [meta, setMeta] = useState<{
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+    from: number | null
+    to: number | null
+  } | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
     room: RoomListItem | null;
@@ -229,24 +235,47 @@ export function Rooms() {
     handleCloseImagesDialog();
   };
 
-  // Fetch rooms
+  const roomsQuery = useMemo(() => {
+    const dto: {
+      search?: string
+      type?: string
+      isAvailable?: boolean
+      page: number
+      perPage: number
+    } = {
+      page,
+      perPage,
+    }
+
+    if (search.trim()) dto.search = search.trim()
+    if (typeFilter !== 'all') dto.type = typeFilter
+    if (statusFilter === 'available') dto.isAvailable = true
+    if (statusFilter === 'unavailable') dto.isAvailable = false
+
+    return dto
+  }, [page, perPage, search, statusFilter, typeFilter])
+
+  const fetchRooms = async () => {
+    try {
+      setIsLoading(true);
+      const response = await getRooms(roomsQuery);
+      setRooms(response.data);
+      setMeta((response as any).meta ?? null);
+    } catch (error: any) {
+      console.error('Failed to load rooms:', error);
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Failed to load rooms';
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // Fetch rooms (server-side pagination + server-side filters)
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const response = await getRooms({ perPage: 100 });
-        setRooms(response.data);
-      } catch (error: any) {
-        console.error('Failed to load rooms:', error);
-        const errorMessage =
-          error.response?.data?.message || error.message || 'Failed to load rooms';
-        toast.error(errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+    fetchRooms()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomsQuery]);
 
   const handleEditRoom = (room: RoomListItem) => {
     setSelectedRoom(room);
@@ -274,15 +303,7 @@ export function Rooms() {
     setIsDrawerOpen(false);
     setSelectedRoom(null);
     // Refresh rooms list
-    try {
-      const response = await getRooms({ perPage: 100 });
-      setRooms(response.data);
-    } catch (error: any) {
-      console.error('Failed to refresh rooms:', error);
-      const errorMessage =
-        error.response?.data?.message || error.message || 'Failed to refresh rooms';
-      toast.error(errorMessage);
-    }
+    await fetchRooms()
   };
 
   const handleDeleteRoom = (room: RoomListItem) => {
@@ -299,8 +320,7 @@ export function Rooms() {
       // Refresh rooms list - remove from state immediately and then fetch fresh data
       setRooms((prevRooms) => prevRooms.filter((r) => r.id !== roomToDelete.id));
       // Fetch fresh data to ensure sync
-      const response = await getRooms({ perPage: 100 });
-      setRooms(response.data);
+      await fetchRooms()
     } catch (error: any) {
       console.error('Failed to delete room:', error);
       const errorMessage =
@@ -311,41 +331,14 @@ export function Rooms() {
 
   const columns = createColumns(handleEditRoom, handleDeleteRoom, handleManageImages);
 
-  // Update column filters when external filter states change
-  useEffect(() => {
-    const filters: ColumnFiltersState = [];
-    if (typeFilter !== 'all') {
-      filters.push({ id: 'type', value: typeFilter });
-    }
-    if (statusFilter !== 'all') {
-      filters.push({ 
-        id: 'isAvailable', 
-        value: statusFilter === 'available' 
-      });
-    }
-    setColumnFilters(filters);
-  }, [typeFilter, statusFilter]);
-
   const table = useReactTable({
     data: rooms,
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
-    globalFilterFn: (row, _columnId, filterValue) => {
-      const searchValue = filterValue.toLowerCase();
-      const type = row.original.type?.toLowerCase() || '';
-      const description = row.original.description?.toLowerCase() || '';
-      return type.includes(searchValue) || description.includes(searchValue);
-    },
     state: {
       sorting,
-      columnFilters,
-      globalFilter,
     },
   });
 
@@ -542,12 +535,15 @@ export function Rooms() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Search rooms..."
-                value={globalFilter}
-                onChange={(e) => setGlobalFilter(e.target.value)}
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setPage(1)
+                }}
                 className="pl-10"
               />
             </div>
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1) }}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
@@ -560,7 +556,7 @@ export function Rooms() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1) }}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
@@ -752,23 +748,32 @@ export function Rooms() {
           </Dialog>
 
           {/* Pagination */}
-          <div className="flex items-center justify-end space-x-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm text-muted-foreground">
+              {meta ? (
+                <span>
+                  Showing {meta.from ?? 0}-{meta.to ?? 0} of {meta.total}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex items-center justify-end space-x-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={isLoading || page <= 1}
             >
               Previous
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              onClick={() => setPage((p) => (meta ? Math.min(meta.last_page, p + 1) : p + 1))}
+              disabled={isLoading || (meta ? page >= meta.last_page : false)}
             >
               Next
             </Button>
+            </div>
           </div>
         </>
       )}
