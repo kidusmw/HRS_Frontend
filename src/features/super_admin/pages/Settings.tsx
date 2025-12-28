@@ -224,7 +224,7 @@ export function Settings() {
                       <div className="flex items-center gap-4">
                         <Input
                           type="file"
-                          accept="image/*"
+                          accept="image/*,.svg"
                           onChange={handleLogoUpload}
                           className="hidden"
                           id="logo-upload"
