@@ -18,7 +18,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 import type { SystemSettingsDto } from '@/types/admin';
-import { getSystemSettings, updateSystemSettings } from '../api/superAdminApi';
+import { getSystemSettings, updateSystemSettings } from '../api';
+
+function applyFavicon(url: string | null | undefined) {
+  if (!url) return
+  const link =
+    (document.querySelector('#app-favicon') as HTMLLinkElement | null) ??
+    (document.querySelector("link[rel~='icon']") as HTMLLinkElement | null)
+  if (!link) return
+  link.href = `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`
+}
+
+function applyTitle(title: string | null | undefined) {
+  if (!title) return
+  document.title = title
+}
 
 const settingsFormSchema = z.object({
   systemName: z.string().min(1, 'System name is required'),
@@ -82,6 +96,8 @@ export function Settings() {
       reader.onloadend = () => {
         const result = reader.result as string;
         setLogoPreview(result);
+        // Update favicon immediately for better UX (will be replaced with server URL after save)
+        applyFavicon(result);
       };
       reader.readAsDataURL(file);
     }
@@ -113,9 +129,12 @@ export function Settings() {
       // Update logo preview if URL exists
       if (updatedSettings.systemLogoUrl) {
         setLogoPreview(updatedSettings.systemLogoUrl);
+        applyFavicon(updatedSettings.systemLogoUrl)
       } else {
         setLogoPreview(null);
       }
+
+      applyTitle(updatedSettings.systemName)
       
       // Clear logo file after successful upload
       setLogoFile(null);

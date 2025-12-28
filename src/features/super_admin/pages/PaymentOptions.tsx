@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { CreditCard } from 'lucide-react';
-import { getSystemSettings } from '../api/superAdminApi';
+import { getSystemSettings } from '../api';
 
 export function PaymentOptions() {
   const [isLoading, setIsLoading] = useState(true);

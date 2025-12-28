@@ -15,7 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import type { NotificationItem } from '@/types/admin';
-import { getNotifications, markNotificationRead } from '../api/superAdminApi';
+import { getNotifications, markNotificationRead } from '../api';
 
 function getNotificationBadgeVariant(type: string) {
   switch (type) {
