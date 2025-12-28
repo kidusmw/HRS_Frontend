@@ -21,7 +21,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Mail, Shield, Calendar, CheckCircle, XCircle, AlertTriangle, X } from 'lucide-react';
+import { Mail, Phone, Shield, Calendar, CheckCircle, XCircle, AlertTriangle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -39,6 +39,12 @@ import { getProfile, updatePassword, updateProfile } from '@/features/auth/api/a
 const profileFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
+  phoneNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\+[1-9]\d{1,14}$/.test(v), {
+      message: 'Phone number must be in E.164 format (e.g., +251912345678)',
+    }),
   avatar: z.instanceof(File).optional().or(z.literal('')),
 });
 
@@ -69,6 +75,7 @@ export function Profile() {
     defaultValues: {
       name: user?.name || '',
       email: user?.email || '',
+      phoneNumber: user?.phoneNumber || '',
       avatar: undefined,
     },
   });
@@ -93,6 +100,7 @@ export function Profile() {
         profileForm.reset({
           name: resp.data.name,
           email: resp.data.email,
+          phoneNumber: resp.data.phoneNumber || '',
           avatar: undefined,
         });
         setAvatarPreview(resp.data.avatarUrl || null);
@@ -153,6 +161,7 @@ export function Profile() {
       const resp = await updateProfile({
         name: values.name,
         email: values.email,
+        phoneNumber: values.phoneNumber || null,
         avatar: values.avatar instanceof File ? values.avatar : null,
         removeAvatar,
       });
@@ -160,6 +169,7 @@ export function Profile() {
       profileForm.reset({
         name: resp.data.name,
         email: resp.data.email,
+        phoneNumber: resp.data.phoneNumber || '',
         avatar: undefined,
       });
       setAvatarPreview(resp.data.avatarUrl || null);
@@ -255,6 +265,10 @@ export function Profile() {
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Mail className="h-4 w-4" />
                 <span>{user.email}</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Phone className="h-4 w-4" />
+                <span>{user.phoneNumber || 'No phone number'}</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
                 {user.emailVerifiedAt ? (
@@ -384,6 +398,23 @@ export function Profile() {
                     </FormControl>
                     <FormDescription>
                       You will need to verify your email if you change it.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={profileForm.control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+251912345678" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Use E.164 format (starts with <span className="font-mono">+</span> and country code).
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
