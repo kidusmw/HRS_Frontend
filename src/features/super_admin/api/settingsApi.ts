@@ -16,9 +16,11 @@ export async function updateSystemSettings(data: SystemSettingsDto & { logo?: Fi
     formData.append('defaultTimezone', data.defaultTimezone)
     formData.append('logo', data.logo)
 
-    if (data.chapaEnabled !== undefined) formData.append('chapaEnabled', data.chapaEnabled.toString())
-    if (data.stripeEnabled !== undefined) formData.append('stripeEnabled', data.stripeEnabled.toString())
-    if (data.telebirrEnabled !== undefined) formData.append('telebirrEnabled', data.telebirrEnabled.toString())
+    // IMPORTANT: Laravel's `boolean` validator does NOT accept "true"/"false" strings.
+    // When using FormData, booleans become strings, so send "1"/"0" instead.
+    if (data.chapaEnabled !== undefined) formData.append('chapaEnabled', data.chapaEnabled ? '1' : '0')
+    if (data.stripeEnabled !== undefined) formData.append('stripeEnabled', data.stripeEnabled ? '1' : '0')
+    if (data.telebirrEnabled !== undefined) formData.append('telebirrEnabled', data.telebirrEnabled ? '1' : '0')
 
     const response = await api.post(`${BASE_URL}/settings/system`, formData)
     return response.data

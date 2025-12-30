@@ -28,13 +28,31 @@ export interface UserDto {
 
 function normalizeAvatarUrl(url?: string | null): string | null {
   if (!url) return null;
-  // If backend returns a relative path like /storage/..., prefix with API origin
-  if (url.startsWith('/')) {
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
-    const origin = apiBase.replace(/\/api\/?$/, '');
-    return `${origin}${url}`;
+  // Keep data URLs as-is (local previews / legacy values).
+  if (url.startsWith('data:')) return url
+
+  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api'
+  const origin = apiBase.replace(/\/api\/?$/, '')
+
+  // Backend may return:
+  // - absolute URL (preferred)
+  // - /storage/... (relative)
+  // - http://localhost/storage/... (common dev misconfig when APP_URL misses port)
+  try {
+    const parsed = new URL(url, origin)
+
+    // If it's a local storage asset, always serve it from the backend origin derived from VITE_API_BASE_URL.
+    if (parsed.pathname.startsWith('/storage/')) {
+      return `${origin}${parsed.pathname}${parsed.search}`
+    }
+
+    return parsed.toString()
+  } catch {
+    // Fallback: handle plain relative strings without URL parsing
+    if (url.startsWith('/')) return `${origin}${url}`
+    if (url.startsWith('storage/')) return `${origin}/${url}`
+    return url
   }
-  return url;
 }
 
 export function mapUserDto(user: UserDto): User {
