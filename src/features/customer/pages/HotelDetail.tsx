@@ -6,6 +6,7 @@ import type { DateRange } from 'react-day-picker'
 import type { RootState } from '@/app/store'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from 'sonner'
 import {
   createReservationIntent,
   getAvailability,
@@ -103,7 +104,7 @@ export function HotelDetail() {
     }
     // Check if user has a valid phone number
     if (!user.phoneNumber || !/^\+[1-9]\d{1,14}$/.test(user.phoneNumber)) {
-      alert('Please complete your profile by adding a valid phone number before making a reservation.')
+      toast.error('Please complete your profile by adding a valid phone number before making a reservation.')
       navigate('/profile')
       return
     }
@@ -142,7 +143,7 @@ export function HotelDetail() {
       if (error.response?.status === 422) {
         const errors = error.response?.data?.errors
         if (errors?.phoneNumber) {
-          alert('Please complete your profile by adding a valid phone number before making a reservation.')
+          toast.error('Please complete your profile by adding a valid phone number before making a reservation.')
           navigate('/profile')
           setIsProcessingPayment(false)
           setShowConfirmDialog(false)
@@ -150,7 +151,7 @@ export function HotelDetail() {
         }
       }
       
-      alert(error.response?.data?.message || 'Failed to initiate payment. Please try again.')
+      toast.error(error.response?.data?.message || 'Failed to initiate payment. Please try again.')
       setIsProcessingPayment(false)
       setShowConfirmDialog(false)
     }
