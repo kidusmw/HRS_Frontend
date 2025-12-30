@@ -15,7 +15,7 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart';
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from 'recharts';
-import { getDashboardMetrics, getNotifications, getLogs } from '../api/superAdminApi';
+import { getDashboardMetrics, getLogs, getNotifications } from '../api';
 import { toast } from 'sonner';
 
 
@@ -43,6 +43,7 @@ export function Dashboard() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [activity, setActivity] = useState<AuditLogItem[]>([]);
 
+  // Initial data fetch
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -64,6 +65,20 @@ export function Dashboard() {
     };
 
     fetchData();
+  }, []);
+
+  // Poll for notifications every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const notificationsData = await getNotifications({ limit: 10 }).catch(() => ({ data: [] }));
+        setNotifications(notificationsData?.data || []);
+      } catch (error) {
+        console.error('Failed to refresh notifications:', error);
+      }
+    }, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   if (isLoading || !metrics) {

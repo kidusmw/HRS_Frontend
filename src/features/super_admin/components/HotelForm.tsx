@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import type { HotelListItem } from '@/types/admin';
-import { createHotel, updateHotel, getUsers } from '../api/superAdminApi';
+import { createHotel, getUsers, updateHotel } from '../api';
 import { toast } from 'sonner';
 
 const hotelFormSchema = z.object({

@@ -5,9 +5,15 @@ export interface User {
   name: string;
   email: string;
   role: Role;
-  email_verified_at?: string | null;
-  created_at?: string;
-  updated_at?: string;
+  hotelId?: number | null;
+  hotelName?: string | null;
+  emailVerifiedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  phoneNumber?: string | null;
+  avatarUrl?: string | null;
+  isActive?: boolean;
+  lastActiveAt?: string | null;
 }
 
 export interface AuthState {
@@ -29,6 +35,7 @@ export interface RegisterData {
   email: string;
   password: string;
   password_confirmation: string;
+  phoneNumber: string;
 }
 
 export interface AuthResponse {
@@ -36,4 +43,12 @@ export interface AuthResponse {
   access_token?: string;
   token_type?: string;
   message?: string;
+}
+
+export type GoogleOAuthCallbackResponse = {
+  message?: string
+  user?: User
+  access_token?: string
+  token_type?: string
+  error?: string
 }

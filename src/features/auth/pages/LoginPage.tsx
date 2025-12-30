@@ -1,6 +1,6 @@
 import { GalleryVerticalEnd } from "lucide-react"
 
-import { LoginForm } from "@/components/forms/login-form"
+import { LoginForm } from "@/features/auth/components/login-form"
 import { Link } from "react-router-dom"
 
 export default function LoginPage() {
@@ -12,7 +12,7 @@ export default function LoginPage() {
             <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
               <GalleryVerticalEnd className="size-4" />
             </div>
-            Trevo
+            StayFinder
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-center">

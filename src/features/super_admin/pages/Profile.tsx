@@ -1,10 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState, AppDispatch } from '@/app/store';
-import { logoutUserThunk } from '@/features/auth/authSlice';
+import { logoutUserThunk, setUser } from '@/features/auth/authSlice';
 import {
   Form,
   FormControl,
@@ -21,7 +21,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Mail, Shield, Calendar, CheckCircle, XCircle, AlertTriangle, X } from 'lucide-react';
+import { Mail, Phone, Shield, Calendar, CheckCircle, XCircle, AlertTriangle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -33,10 +33,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import { getProfile, updatePassword, updateProfile } from '@/features/auth/api/authApi';
 
 const profileFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
+  phoneNumber: z
+    .string()
+    .optional()
+    .refine((v) => !v || /^\+[1-9]\d{1,14}$/.test(v), {
+      message: 'Phone number must be in E.164 format (e.g., +251912345678)',
+    }),
   avatar: z.instanceof(File).optional().or(z.literal('')),
 });
 
@@ -58,6 +66,8 @@ export function Profile() {
   const user = useSelector((state: RootState) => state.auth.user);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const profileForm = useForm<ProfileFormValues>({
@@ -65,6 +75,7 @@ export function Profile() {
     defaultValues: {
       name: user?.name || '',
       email: user?.email || '',
+      phoneNumber: user?.phoneNumber || '',
       avatar: undefined,
     },
   });
@@ -77,6 +88,33 @@ export function Profile() {
       confirmPassword: '',
     },
   });
+
+  const resolvedAvatar = avatarPreview || user?.avatarUrl || null;
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoadingProfile(true);
+        const resp = await getProfile();
+        dispatch(setUser(resp.data));
+        profileForm.reset({
+          name: resp.data.name,
+          email: resp.data.email,
+          phoneNumber: resp.data.phoneNumber || '',
+          avatar: undefined,
+        });
+        setAvatarPreview(resp.data.avatarUrl || null);
+        setRemoveAvatar(false);
+      } catch (error: any) {
+        console.error('Failed to load profile:', error);
+        toast.error(error.response?.data?.message || error.message || 'Failed to load profile');
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+    fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,6 +137,7 @@ export function Profile() {
       }
       // Set the file in the form
       profileForm.setValue('avatar', file, { shouldValidate: true });
+      setRemoveAvatar(false);
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -110,6 +149,7 @@ export function Profile() {
 
   const handleRemoveAvatar = () => {
     setAvatarPreview(null);
+    setRemoveAvatar(true);
     profileForm.setValue('avatar', undefined);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -118,33 +158,51 @@ export function Profile() {
 
   const onSubmitProfile = async (values: ProfileFormValues) => {
     try {
-      // TODO: Replace with actual API call
-      const formData = new FormData();
-      formData.append('name', values.name);
-      formData.append('email', values.email);
-      if (values.avatar) {
-        formData.append('avatar', values.avatar);
-      }
-      console.log('Updating profile:', values);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // Show success toast
+      const resp = await updateProfile({
+        name: values.name,
+        email: values.email,
+        phoneNumber: values.phoneNumber || null,
+        avatar: values.avatar instanceof File ? values.avatar : null,
+        removeAvatar,
+      });
+      dispatch(setUser(resp.data));
+      profileForm.reset({
+        name: resp.data.name,
+        email: resp.data.email,
+        phoneNumber: resp.data.phoneNumber || '',
+        avatar: undefined,
+      });
+      setAvatarPreview(resp.data.avatarUrl || null);
+      setRemoveAvatar(false);
+      toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
-      // Show error toast
+      console.error('Profile update error response:', (error as any)?.response?.data);
+      const validation = (error as any)?.response?.data?.errors as Record<string, string[]> | undefined;
+      const firstValidationError = validation ? Object.values(validation)?.[0]?.[0] : null;
+      const message =
+        firstValidationError ||
+        (error as any)?.response?.data?.message ||
+        (error as any)?.message ||
+        'Failed to update profile';
+      toast.error(message);
     }
   };
 
-  const onSubmitPassword = async (_values: PasswordFormValues) => {
+  const onSubmitPassword = async (values: PasswordFormValues) => {
     try {
-      // TODO: Replace with actual API call
-      console.log('Changing password...');
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await updatePassword({
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+        confirmPassword: values.confirmPassword,
+      });
       setIsPasswordDialogOpen(false);
       passwordForm.reset();
-      // Show success toast
+      toast.success('Password changed successfully');
     } catch (error) {
       console.error('Error changing password:', error);
-      // Show error toast
+      const message = (error as any)?.response?.data?.message || (error as any)?.message || 'Failed to change password';
+      toast.error(message);
     }
   };
 
@@ -190,8 +248,8 @@ export function Profile() {
         <CardContent className="space-y-6">
           <div className="flex items-center gap-6">
             <Avatar className="h-24 w-24">
-              {avatarPreview || (user as any)?.avatar_url ? (
-                <AvatarImage src={avatarPreview || (user as any)?.avatar_url} alt={user.name} />
+              {resolvedAvatar ? (
+                <AvatarImage src={resolvedAvatar} alt={user.name} />
               ) : null}
               <AvatarFallback className="text-2xl">
                 {getInitials(user.name)}
@@ -209,12 +267,16 @@ export function Profile() {
                 <span>{user.email}</span>
               </div>
               <div className="flex items-center gap-2 text-muted-foreground">
-                {user.email_verified_at ? (
+                <Phone className="h-4 w-4" />
+                <span>{user.phoneNumber || 'No phone number'}</span>
+              </div>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                {user.emailVerifiedAt ? (
                   <>
                     <CheckCircle className="h-4 w-4 text-green-500" />
                     <span>Email verified</span>
                     <span className="text-xs">
-                      {format(new Date(user.email_verified_at), 'PP')}
+                      {format(new Date(user.emailVerifiedAt), 'PP')}
                     </span>
                   </>
                 ) : (
@@ -236,8 +298,8 @@ export function Profile() {
                 <span>Member since</span>
               </div>
               <p className="font-medium">
-                {user.created_at
-                  ? format(new Date(user.created_at), 'PP')
+                {user.createdAt
+                  ? format(new Date(user.createdAt), 'PP')
                   : 'N/A'}
               </p>
             </div>
@@ -269,8 +331,8 @@ export function Profile() {
                     <FormLabel>Profile Picture</FormLabel>
                     <div className="flex items-center gap-4">
                       <Avatar className="h-20 w-20">
-                        {avatarPreview || (user as any)?.avatar_url ? (
-                          <AvatarImage src={avatarPreview || (user as any)?.avatar_url} alt={user.name} />
+                        {resolvedAvatar ? (
+                          <AvatarImage src={resolvedAvatar} alt={user.name} />
                         ) : null}
                         <AvatarFallback className="text-xl">
                           {getInitials(user.name)}
@@ -289,7 +351,7 @@ export function Profile() {
                             }}
                             className="cursor-pointer"
                           />
-                          {(avatarPreview || (user as any)?.avatar_url) && (
+                          {resolvedAvatar && (
                             <Button
                               type="button"
                               variant="outline"
@@ -342,12 +404,29 @@ export function Profile() {
                 )}
               />
 
+              <FormField
+                control={profileForm.control}
+                name="phoneNumber"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+251912345678" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Use E.164 format (starts with <span className="font-mono">+</span> and country code).
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <div className="flex justify-end">
                 <Button
                   type="submit"
-                  disabled={profileForm.formState.isSubmitting}
+                  disabled={profileForm.formState.isSubmitting || loadingProfile}
                 >
-                  {profileForm.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+                  {profileForm.formState.isSubmitting || loadingProfile ? 'Saving...' : 'Save Changes'}
                 </Button>
               </div>
             </form>
@@ -364,7 +443,7 @@ export function Profile() {
         <CardContent>
           <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
             <DialogTrigger asChild>
-              <Button variant="outline">Change Password</Button>
+                    <Button variant="outline">Change Password</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>

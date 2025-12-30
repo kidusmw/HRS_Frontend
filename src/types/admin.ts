@@ -21,6 +21,7 @@ export interface UserListItem {
   isActive: boolean;
   lastActiveAt?: string | null;
   phoneNumber?: string | null;
+  supervisor?: { id: number; name: string; email: string } | null;
 }
 
 export interface HotelListItem {
@@ -63,6 +64,9 @@ export interface SystemSettingsDto {
   systemLogoUrl?: string | null;
   defaultCurrency: string;
   defaultTimezone: string;
+  chapaEnabled: boolean;
+  stripeEnabled: boolean;
+  telebirrEnabled: boolean;
 }
 
 export interface NotificationItem {
@@ -82,6 +86,7 @@ export interface CreateUserDto {
   hotelId?: number | null;
   phoneNumber?: string | null;
   password?: string | null; // Auto-generated if not provided
+  supervisorId?: number | null;
 }
 
 export interface UpdateUserDto {
@@ -90,6 +95,7 @@ export interface UpdateUserDto {
   role?: Role;
   hotelId?: number | null;
   phoneNumber?: string | null;
+  supervisorId?: number | null;
 }
 
 export interface CreateHotelDto {
@@ -113,4 +119,110 @@ export interface UpdateHotelDto {
   logo?: File | null;
   adminId?: number | null;
 }
+
+export interface RoomListItem {
+  id: number;
+  hotelId: number;
+  type: string;
+  price: number;
+  isAvailable: boolean;
+  capacity: number;
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateRoomDto {
+  type: string;
+  price: number;
+  isAvailable?: boolean; // Optional - defaults to true on backend, managed by receptionists/managers
+  capacity: number;
+  description?: string | null;
+}
+
+export interface UpdateRoomDto {
+  type?: string;
+  price?: number;
+  isAvailable?: boolean;
+  capacity?: number;
+  description?: string | null;
+}
+
+export type ReservationStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+
+export interface ReservationListItem {
+  id: number;
+  hotelId: number;
+  roomId: number;
+  roomType?: string | null;
+  userId?: number | null;
+  userName?: string | null;
+  userEmail?: string | null;
+  checkIn: string;
+  checkOut: string;
+  status: ReservationStatus;
+  guests: number;
+  specialRequests?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface CreateReservationDto {
+  roomId: number;
+  userId?: number | null;
+  checkIn: string;
+  checkOut: string;
+  status: ReservationStatus;
+  guests: number;
+  specialRequests?: string | null;
+}
+
+export interface UpdateReservationDto {
+  roomId?: number;
+  userId?: number | null;
+  checkIn?: string;
+  checkOut?: string;
+  status?: ReservationStatus;
+  guests?: number;
+  specialRequests?: string | null;
+}
+
+export type PaymentStatus = 'completed' | 'pending' | 'failed' | 'refunded';
+export type PaymentMethod = 'credit_card' | 'debit_card' | 'cash' | 'bank_transfer' | 'online';
+
+export interface PaymentListItem {
+  id: number;
+  reservationId: number;
+  reservationNumber?: string | null;
+  guestName: string;
+  guestEmail?: string | null;
+  amount: number;
+  currency: string;
+  paymentMethod: PaymentMethod;
+  status: PaymentStatus;
+  transactionId?: string | null;
+  paidAt: string;
+  createdAt: string;
+}
+
+export interface HotelImage {
+  id: number;
+  hotelId: number;
+  imageUrl: string | null;
+  altText: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string | null;
+}
+
+export interface RoomImage {
+  id: number;
+  roomId: number;
+  imageUrl: string | null;
+  altText: string | null;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string | null;
+}
+
 

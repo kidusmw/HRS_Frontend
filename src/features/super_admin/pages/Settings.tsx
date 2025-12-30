@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from 'zod'
+import { toast } from 'sonner'
+
 import {
   Form,
   FormControl,
@@ -10,118 +12,139 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, X } from 'lucide-react';
-import type { SystemSettingsDto } from '@/types/admin';
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Upload, X } from 'lucide-react'
+import type { SystemSettingsDto } from '@/types/admin'
+
+import { getSystemSettings, updateSystemSettings } from '../api'
+
+function applyFavicon(url: string | null | undefined) {
+  if (!url) return
+  const link =
+    (document.querySelector('#app-favicon') as HTMLLinkElement | null) ??
+    (document.querySelector("link[rel~='icon']") as HTMLLinkElement | null)
+  if (!link) return
+  link.href = `${url}${url.includes('?') ? '&' : '?'}v=${Date.now()}`
+}
+
+function applyTitle(title: string | null | undefined) {
+  if (!title) return
+  document.title = title
+}
 
 const settingsFormSchema = z.object({
   systemName: z.string().min(1, 'System name is required'),
-  systemLogoUrl: z.string().url().optional().or(z.literal('')),
-  defaultCurrency: z.string().min(1, 'Default currency is required'),
-  defaultTimezone: z.string().min(1, 'Default timezone is required'),
-});
+})
 
-type SettingsFormValues = z.infer<typeof settingsFormSchema>;
-
-const currencies = [
-  { code: 'USD', name: 'US Dollar ($)' },
-  { code: 'EUR', name: 'Euro (€)' },
-  { code: 'GBP', name: 'British Pound (£)' },
-  { code: 'JPY', name: 'Japanese Yen (¥)' },
-  { code: 'ETB', name: 'Ethiopian Birr (Br)' },
-];
-
-const timezones = [
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'Europe/London',
-  'Europe/Paris',
-  'Asia/Tokyo',
-];
-
-// Mock current settings
-const mockCurrentSettings: SystemSettingsDto = {
-  systemName: 'Hotel Reservation System',
-  systemLogoUrl: null,
-  defaultCurrency: 'USD',
-  defaultTimezone: 'America/New_York',
-};
+type SettingsFormValues = z.infer<typeof settingsFormSchema>
 
 export function Settings() {
+  const [isLoading, setIsLoading] = useState(true)
+  const [currentSettings, setCurrentSettings] = useState<SystemSettingsDto | null>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
-    defaultValues: {
-      systemName: mockCurrentSettings.systemName,
-      systemLogoUrl: mockCurrentSettings.systemLogoUrl || '',
-      defaultCurrency: mockCurrentSettings.defaultCurrency,
-      defaultTimezone: mockCurrentSettings.defaultTimezone,
-    },
-  });
+    defaultValues: { systemName: '' },
+  })
 
-  const [logoPreview, setLogoPreview] = useState<string | null>(
-    mockCurrentSettings.systemLogoUrl || null
-  );
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        setIsLoading(true)
+        const response = await getSystemSettings()
+        const settings = response.data
+
+        setCurrentSettings(settings)
+        form.reset({ systemName: settings.systemName || '' })
+        setLogoPreview(settings.systemLogoUrl ?? null)
+
+        applyTitle(settings.systemName)
+        applyFavicon(settings.systemLogoUrl)
+      } catch (error) {
+        console.error('Failed to load settings:', error)
+        toast.error('Failed to load settings')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchSettings()
+  }, [form])
 
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      // In real implementation, upload to server and get URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setLogoPreview(result);
-        form.setValue('systemLogoUrl', result);
-      };
-      reader.readAsDataURL(file);
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setLogoFile(file)
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const result = reader.result as string
+      setLogoPreview(result)
+      // Immediate UX feedback; server URL will replace it on save
+      applyFavicon(result)
     }
-  };
+    reader.readAsDataURL(file)
+  }
 
   const handleRemoveLogo = () => {
-    setLogoPreview(null);
-    form.setValue('systemLogoUrl', '');
-  };
+    setLogoPreview(null)
+    setLogoFile(null)
+  }
 
   const onSubmit = async (values: SettingsFormValues) => {
     try {
-      // TODO: Replace with actual API call
-      console.log('Saving settings:', values);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      // Show success toast
+      if (!currentSettings) {
+        toast.error('Settings are not loaded yet')
+        return
+      }
+
+      const payload: SystemSettingsDto & { logo?: File } = {
+        ...currentSettings,
+        systemName: values.systemName,
+        // These are fixed in the UI; keep payload consistent
+        defaultCurrency: 'ETB',
+        defaultTimezone: 'UTC',
+        ...(logoFile ? { logo: logoFile } : {}),
+      }
+
+      const response = await updateSystemSettings(payload)
+      const updatedSettings = response.data
+
+      setCurrentSettings(updatedSettings)
+      setLogoPreview(updatedSettings.systemLogoUrl ?? null)
+      setLogoFile(null)
+
+      applyTitle(updatedSettings.systemName)
+      applyFavicon(updatedSettings.systemLogoUrl)
+
+      toast.success('Settings saved successfully')
     } catch (error) {
-      console.error('Error saving settings:', error);
-      // Show error toast
+      console.error('Error saving settings:', error)
+      toast.error('Failed to save settings')
     }
-  };
+  }
 
   const handleReset = () => {
-    form.reset({
-      systemName: mockCurrentSettings.systemName,
-      systemLogoUrl: mockCurrentSettings.systemLogoUrl || '',
-      defaultCurrency: mockCurrentSettings.defaultCurrency,
-      defaultTimezone: mockCurrentSettings.defaultTimezone,
-    });
-    setLogoPreview(mockCurrentSettings.systemLogoUrl || null);
-  };
+    if (!currentSettings) return
+    form.reset({ systemName: currentSettings.systemName || '' })
+    setLogoPreview(currentSettings.systemLogoUrl ?? null)
+    setLogoFile(null)
+
+    applyTitle(currentSettings.systemName)
+    applyFavicon(currentSettings.systemLogoUrl)
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">System Settings</h1>
-        <p className="text-muted-foreground">
-          Configure global system settings and branding
-        </p>
+        <p className="text-muted-foreground">Configure global system settings and branding</p>
       </div>
 
       <Card>
@@ -141,156 +164,88 @@ export function Settings() {
                   <FormItem>
                     <FormLabel>System Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Hotel Reservation System" {...field} />
+                      <Input placeholder="Hotel Reservation System" {...field} disabled={isLoading} />
                     </FormControl>
-                    <FormDescription>
-                      The name displayed throughout the system
-                    </FormDescription>
+                    <FormDescription>The name displayed throughout the system</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="systemLogoUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>System Logo</FormLabel>
-                    <FormControl>
-                      <div className="space-y-4">
-                        {logoPreview ? (
-                          <div className="relative inline-block">
-                            <img
-                              src={logoPreview}
-                              alt="Logo preview"
-                              className="h-20 w-auto border rounded"
-                            />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="icon"
-                              className="absolute -top-2 -right-2 h-6 w-6"
-                              onClick={handleRemoveLogo}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-4">
-                            <Input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleLogoUpload}
-                              className="hidden"
-                              id="logo-upload"
-                            />
-                            <label htmlFor="logo-upload">
-                              <Button type="button" variant="outline" asChild>
-                                <span>
-                                  <Upload className="mr-2 h-4 w-4" />
-                                  Upload Logo
-                                </span>
-                              </Button>
-                            </label>
-                            <span className="text-sm text-muted-foreground">
-                              Or enter a URL
-                            </span>
-                          </div>
-                        )}
-                        {!logoPreview && (
-                          <Input
-                            type="url"
-                            placeholder="https://example.com/logo.png"
-                            {...field}
-                            value={field.value || ''}
-                          />
-                        )}
+              <FormItem>
+                <FormLabel>System Logo</FormLabel>
+                <FormControl>
+                  <div className="space-y-4">
+                    {logoPreview ? (
+                      <div className="relative inline-block">
+                        <img
+                          src={logoPreview}
+                          alt="Logo preview"
+                          className="h-20 w-auto border rounded"
+                        />
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={handleRemoveLogo}
+                          disabled={isLoading}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
                       </div>
-                    </FormControl>
-                    <FormDescription>
-                      Upload or provide URL for the system logo
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    ) : (
+                      <div className="flex items-center gap-4">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                          id="logo-upload"
+                          disabled={isLoading}
+                        />
+                        <label htmlFor="logo-upload">
+                          <Button type="button" variant="outline" asChild disabled={isLoading}>
+                            <span>
+                              <Upload className="mr-2 h-4 w-4" />
+                              Upload Logo
+                            </span>
+                          </Button>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                </FormControl>
+                <FormDescription>Upload the system logo image file</FormDescription>
+              </FormItem>
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="defaultCurrency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Currency</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {currencies.map((currency) => (
-                            <SelectItem key={currency.code} value={currency.code}>
-                              {currency.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Default currency for all hotels
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Default Currency</label>
+                  <div className="flex items-center gap-2 p-3 border rounded-md bg-muted">
+                    <span className="text-sm font-semibold">ETB</span>
+                    <span className="text-xs text-muted-foreground">(Ethiopian Birr)</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">System currency is fixed to ETB</p>
+                </div>
 
-                <FormField
-                  control={form.control}
-                  name="defaultTimezone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Default Timezone</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select timezone" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {timezones.map((tz) => (
-                            <SelectItem key={tz} value={tz}>
-                              {tz}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Default timezone for new hotels
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Default Timezone</label>
+                  <div className="flex items-center gap-2 p-3 border rounded-md bg-muted">
+                    <span className="text-sm font-semibold">UTC</span>
+                    <span className="text-xs text-muted-foreground">
+                      (Coordinated Universal Time)
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">System timezone is fixed to UTC</p>
+                </div>
               </div>
 
               <div className="flex justify-end gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleReset}
-                >
+                <Button type="button" variant="outline" onClick={handleReset} disabled={isLoading}>
                   Reset to Last Saved
                 </Button>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
+                <Button type="submit" disabled={isLoading || form.formState.isSubmitting}>
                   {form.formState.isSubmitting ? 'Saving...' : 'Save Settings'}
                 </Button>
               </div>
@@ -299,7 +254,6 @@ export function Settings() {
         </CardContent>
       </Card>
 
-      {/* Preview Section */}
       <Card>
         <CardHeader>
           <CardTitle>Preview</CardTitle>
@@ -307,22 +261,18 @@ export function Settings() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4 p-4 border rounded-lg">
-            {logoPreview && (
-              <img src={logoPreview} alt="Logo" className="h-10 w-auto" />
-            )}
+            {logoPreview && <img src={logoPreview} alt="Logo" className="h-10 w-auto" />}
             <div>
-              <h3 className="font-semibold">
-                {form.watch('systemName') || 'System Name'}
-              </h3>
+              <h3 className="font-semibold">{form.watch('systemName') || 'System Name'}</h3>
               <p className="text-sm text-muted-foreground">
-                Default Currency: {form.watch('defaultCurrency') || 'USD'} | Default
-                Timezone: {form.watch('defaultTimezone') || 'America/New_York'}
+                Default Currency: ETB | Default Timezone: UTC
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }
+
 

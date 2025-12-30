@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   Form,
   FormControl,
@@ -22,13 +22,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import type { UserListItem, Role } from '@/types/admin';
-import { createUser, updateUser, getHotels } from '../api/superAdminApi';
+import { createUser, getHotels, updateUser } from '../api';
 import { toast } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
 
 const userFormSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
-  role: z.enum(['receptionist', 'manager', 'admin', 'super_admin']),
+  role: z.enum(['admin', 'super_admin']),
   hotelId: z.number().nullable().optional(),
   phoneNumber: z.string().min(1, 'Phone number is required'),
   password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
@@ -44,11 +45,18 @@ interface UserFormProps {
   onCancel: () => void;
 }
 
-const roles: Role[] = ['receptionist', 'manager', 'admin', 'super_admin'];
+const roles: Role[] = ['admin', 'super_admin'];
+
+function getInitialRole(role: string | undefined): 'admin' | 'super_admin' {
+  if (role === 'super_admin' || role === 'superadmin') return 'super_admin';
+  if (role === 'admin') return 'admin';
+  return 'admin';
+}
 
 export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
   const isEditing = !!user;
   const [hotels, setHotels] = useState<{ id: number; name: string }[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     const fetchHotels = async () => {
@@ -68,12 +76,13 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
     defaultValues: {
       name: user?.name || '',
       email: user?.email || '',
-      // If editing a client, keep their role, otherwise default to receptionist
+      // If editing a client, keep their role as admin (clients can't be edited via this form)
       // Note: client role is not in the schema, but we handle it in defaultValues
       // The backend will prevent changing TO client or creating clients
-      role: (user?.role && user.role !== 'client' && roles.includes(user.role as Role))
-        ? user.role
-        : 'receptionist',
+      // If backend returns a role not editable in this form, default to ADMIN and show a warning.
+      role: user?.role && user.role !== 'client' && roles.includes(user.role as Role)
+        ? (user.role as 'admin' | 'super_admin')
+        : getInitialRole(user?.role),
       hotelId: user?.hotelId || null,
       phoneNumber: user?.phoneNumber || '',
       password: '',
@@ -82,14 +91,65 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
     },
   });
 
+  // Use a ref to track the user ID to prevent unnecessary resets
+  const userIdRef = useRef<number | null>(null);
+  const warnedUnsupportedRoleRef = useRef(false);
+
+  useEffect(() => {
+    const currentUserId = user?.id ?? null;
+
+    // Only reset if the user ID actually changed (prevents reset on every render)
+    if (userIdRef.current !== currentUserId) {
+      userIdRef.current = currentUserId;
+      warnedUnsupportedRoleRef.current = false;
+
+      if (user) {
+        const rawRole = String(user.role);
+        if (
+          !warnedUnsupportedRoleRef.current &&
+          user.role &&
+          rawRole !== 'client' &&
+          !roles.includes(user.role as Role) &&
+          rawRole !== 'superadmin'
+        ) {
+          warnedUnsupportedRoleRef.current = true;
+          toast.error(`This user has role "${user.role}", which isn't editable here. Defaulting to ADMIN.`);
+        }
+
+        // Reset all form fields with fresh user data
+        form.reset({
+          name: user.name || '',
+          email: user.email || '',
+          role: user.role && user.role !== 'client' && roles.includes(user.role as Role)
+            ? (user.role as 'admin' | 'super_admin')
+            : getInitialRole(user.role),
+          hotelId: user.hotelId || null,
+          phoneNumber: user.phoneNumber || '',
+          password: '',
+          generatePassword: false,
+          isActive: user.isActive ?? true,
+        });
+      } else {
+        // Reset to empty values for new user
+        form.reset({
+          name: '',
+          email: '',
+          role: 'admin',
+          hotelId: null,
+          phoneNumber: '',
+          password: '',
+          generatePassword: true,
+          isActive: true,
+        });
+      }
+    }
+  }, [user?.id, form]);
+
   const generatePassword = form.watch('generatePassword');
   const selectedRole = form.watch('role');
 
   // Some roles require hotel assignment
-  const requiresHotel =
-    selectedRole === 'receptionist' ||
-    selectedRole === 'manager' ||
-    selectedRole === 'admin';
+  const requiresHotel = selectedRole === 'admin';
 
   const onSubmit = async (values: UserFormValues) => {
     try {
@@ -99,13 +159,18 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
         const updateData: any = {
           name: values.name,
           email: values.email,
-          // Only update role if user is not a client (clients can't have their role changed)
-          ...(user.role !== 'client' && { role: values.role }),
           hotelId: values.hotelId || null,
           // Phone number is required for creation, but can be empty for updates (will be sent as empty string, backend handles it)
           phoneNumber: values.phoneNumber || '',
           active: values.isActive,
         };
+        
+        // Only update role if user is not a client (clients can't have their role changed)
+        // Always include role in update if user is not a client to ensure role changes are saved
+        if (user.role !== 'client') {
+          updateData.role = values.role;
+        }
+        
         if (values.password && values.password.length >= 8) {
           updateData.password = values.password;
         }
@@ -185,7 +250,6 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
               <FormLabel>Role</FormLabel>
               <Select
                 onValueChange={field.onChange}
-                defaultValue={field.value}
                 value={field.value}
               >
                 <FormControl>
@@ -299,11 +363,22 @@ export function UserForm({ user, onSuccess, onCancel }: UserFormProps) {
                   <FormItem>
                     <FormLabel>Password</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Enter password"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Enter password"
+                          {...field}
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                          onClick={() => setShowPassword((v) => !v)}
+                          aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
                     </FormControl>
                     <FormDescription>
                       Must be at least 8 characters long
