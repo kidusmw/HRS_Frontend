@@ -18,20 +18,11 @@ export interface ManagerDashboardMetrics {
 }
 
 export const getDashboardMetrics = async (): Promise<ManagerDashboardMetrics> => {
-  // #region agent log
   const url = `${BASE_URL}/dashboard`;
-  fetch('http://127.0.0.1:7243/ingest/e2b6fcbc-3ef6-4016-afd7-573e5fddb1c8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'managerApi.ts:21',message:'getDashboardMetrics called',data:{url,baseUrl:BASE_URL,fullUrl:`${api.defaults.baseURL}${url}`},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
   try {
     const response = await api.get(url);
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/e2b6fcbc-3ef6-4016-afd7-573e5fddb1c8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'managerApi.ts:26',message:'getDashboardMetrics success',data:{status:response.status,hasData:!!response.data,dataKeys:response.data?Object.keys(response.data):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     return response.data;
   } catch (error: any) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/e2b6fcbc-3ef6-4016-afd7-573e5fddb1c8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'managerApi.ts:31',message:'getDashboardMetrics error',data:{status:error.response?.status,statusText:error.response?.statusText,message:error.message,url:error.config?.url},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     throw error;
   }
 };

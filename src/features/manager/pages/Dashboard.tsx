@@ -25,18 +25,12 @@ export function Dashboard() {
     const loadData = async () => {
       try {
         setLoading(true);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/e2b6fcbc-3ef6-4016-afd7-573e5fddb1c8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:26',message:'loadData started',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         const [metricsData, alertsData, bookingsData, overridesData] = await Promise.all([
           getDashboardMetrics(),
           getAlerts({ status: 'open', per_page: 5 }),
           getBookings({ per_page: 4 }),
           getOverrides({ per_page: 2 }),
         ]);
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/e2b6fcbc-3ef6-4016-afd7-573e5fddb1c8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:35',message:'loadData all promises resolved',data:{hasMetrics:!!metricsData,hasAlerts:!!alertsData,hasBookings:!!bookingsData,hasOverrides:!!overridesData},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         setMetrics(metricsData);
         setAlerts(alertsData.data || []);
         // Transform booking data
@@ -55,9 +49,6 @@ export function Dashboard() {
         setBookings(transformedBookings);
         setOverrides(overridesData.data || []);
       } catch (error: any) {
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/e2b6fcbc-3ef6-4016-afd7-573e5fddb1c8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:55',message:'loadData error caught',data:{status:error.response?.status,statusText:error.response?.statusText,message:error.message,url:error.config?.url,responseData:error.response?.data},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         console.error('Failed to load dashboard data:', error);
         toast.error(error.response?.data?.message || 'Failed to load dashboard data');
       } finally {
