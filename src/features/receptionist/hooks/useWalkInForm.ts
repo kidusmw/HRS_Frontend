@@ -61,7 +61,7 @@ export function useWalkInForm(args?: { initialCheckIn?: string }) {
       guestName: form.guestName,
       guestEmail: form.guestEmail || undefined,
       guestPhone: form.guestPhone || undefined,
-      roomNumber: parseInt(form.roomNumber, 10),
+      roomNumber: form.roomNumber ? parseInt(form.roomNumber, 10) : 0,
       checkIn: form.checkIn,
       checkOut: form.checkOut,
       paymentMethod: form.paymentMethod,
