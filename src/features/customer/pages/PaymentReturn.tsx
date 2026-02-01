@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getPaymentStatus } from '../api/customerApi'
-import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
 
 type PaymentStatus = 'initiated' | 'pending' | 'paid' | 'completed' | 'failed' | 'refunded'
 type IntentStatus = 'pending' | 'confirmed' | 'failed' | 'expired'
@@ -38,7 +38,7 @@ export function PaymentReturn() {
       return
     }
 
-    let pollTimeout: number | null = null
+    let pollTimeout: ReturnType<typeof setTimeout> | null = null
     let currentPollCount = 0
 
     const pollStatus = async () => {
@@ -78,8 +78,12 @@ export function PaymentReturn() {
           setError('Payment confirmation is taking longer than expected. Please check your reservations.')
           setLoading(false)
         }
-      } catch (err: any) {
-        console.error('Failed to get payment status:', err)
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          console.error('Failed to get payment status:', err.message)
+        } else {
+          console.error('Failed to get payment status:', err)
+        }
         setError('Failed to check payment status. Please try again later.')
         setLoading(false)
       }
