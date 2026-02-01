@@ -1,5 +1,4 @@
-import type { User } from '@/types/auth';
-import type { Role } from '@/types/auth';
+import type { Role, User } from '@/types/auth';
 
 export interface UserDto {
   id: number;
@@ -26,6 +25,7 @@ export interface UserDto {
   updated_at?: string;
 }
 
+// Normalize avatar URL to ensure it's absolute and correctly points to the backend storage if needed.
 function normalizeAvatarUrl(url?: string | null): string | null {
   if (!url) return null;
   // Keep data URLs as-is (local previews / legacy values).

@@ -1,5 +1,5 @@
 import api from '@/lib/axios'
-import type { HotelListItem, CreateHotelDto, UpdateHotelDto } from '@/types/admin'
+import type { CreateHotelDto, HotelListItem, UpdateHotelDto } from '@/types/admin'
 import type { PaginatedResponse, PaginationParams } from './dtos'
 import { toBackendPaginationParams, toCreateHotelFormData, toUpdateHotelFormData, toUpdateHotelPayload } from './dtos'
 
@@ -11,6 +11,7 @@ export interface GetHotelsQueryDto extends PaginationParams {
   hasAdmin?: boolean
 }
 
+// Fetch a paginated list of hotels with optional filters.
 export async function getHotels(params?: GetHotelsQueryDto): Promise<PaginatedResponse<HotelListItem>> {
   const backendParams: Record<string, unknown> = {
     ...toBackendPaginationParams(params),

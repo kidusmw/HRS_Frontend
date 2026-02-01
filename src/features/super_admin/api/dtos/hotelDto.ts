@@ -1,5 +1,6 @@
 import type { CreateHotelDto, UpdateHotelDto } from '@/types/admin'
 
+// Prepare data for creating a hotel, including an optional logo file
 export function toCreateHotelFormData(data: CreateHotelDto): FormData {
   const formData = new FormData()
   formData.append('name', data.name)
@@ -17,6 +18,7 @@ export function toCreateHotelFormData(data: CreateHotelDto): FormData {
   return formData
 }
 
+// Build a clean JSON update payload without sending unchanged fields.
 export function toUpdateHotelPayload(data: UpdateHotelDto): Record<string, unknown> {
   const payload: Record<string, unknown> = {}
   if (data.name) payload.name = data.name
@@ -31,6 +33,7 @@ export function toUpdateHotelPayload(data: UpdateHotelDto): Record<string, unkno
   return payload
 }
 
+// Handle updating a hotel when a new logo is uploaded.
 export function toUpdateHotelFormData(payload: Record<string, unknown>, logo: File): FormData {
   const formData = new FormData()
   Object.keys(payload).forEach((key) => {
@@ -46,5 +49,3 @@ export function toUpdateHotelFormData(payload: Record<string, unknown>, logo: Fi
   formData.append('logo', logo)
   return formData
 }
-
-

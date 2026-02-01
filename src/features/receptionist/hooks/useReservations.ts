@@ -65,6 +65,7 @@ export function useReservations(args?: {
     loadReservations()
   }, [loadReservations])
 
+  // After mutation handler: reload reservations and call optional callback
   const afterMutation = useCallback(async () => {
     await loadReservations()
     await args?.onAfterMutation?.()

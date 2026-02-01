@@ -13,5 +13,3 @@ export function isRoleAllowed(role: Role | undefined, allowed: readonly Role[]) 
   if (!role) return false
   return allowed.includes(role)
 }
-
-

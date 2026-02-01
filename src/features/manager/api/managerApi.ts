@@ -17,6 +17,7 @@ export interface ManagerDashboardMetrics {
   alertsOpen: number;
 }
 
+// Fetch dashboard metrics
 export const getDashboardMetrics = async (): Promise<ManagerDashboardMetrics> => {
   const url = `${BASE_URL}/dashboard`;
   try {
@@ -58,7 +59,7 @@ export interface EmployeesResponse {
     total: number;
   };
 }
-
+// Fetch all employees list
 export const getEmployees = async (params?: GetEmployeesParams): Promise<EmployeesResponse> => {
   const response = await api.get(`${BASE_URL}/employees`, { params });
   return response.data;
@@ -68,8 +69,8 @@ export const getEmployees = async (params?: GetEmployeesParams): Promise<Employe
  * Attendance
  */
 export interface ManagerAttendance {
-  id: number;
-  employeeId: number;
+  id: number; // Attendance record ID
+  employeeId: number; // Employee ID
   date: string; // YYYY-MM-DD
   status: 'present' | 'absent' | 'late' | 'on_leave';
   note?: string | null;
@@ -101,11 +102,13 @@ export interface CreateAttendanceDto {
   note?: string | null;
 }
 
+// Fetch attendance records: Weekly Attendance
 export const getAttendance = async (params?: GetAttendanceParams): Promise<AttendanceResponse> => {
   const response = await api.get(`${BASE_URL}/attendance`, { params });
   return response.data;
 };
 
+// Create a new attendance record: Today's attendance
 export const createAttendance = async (data: CreateAttendanceDto): Promise<{ data: ManagerAttendance }> => {
   const response = await api.post(`${BASE_URL}/attendance`, data);
   return response.data;
@@ -156,12 +159,12 @@ export interface CreateOverrideDto {
   new_status: 'confirmed' | 'pending' | 'checked_in' | 'checked_out' | 'cancelled';
   note?: string | null;
 }
-
+// Fetch override records
 export const getOverrides = async (params?: GetOverridesParams): Promise<OverridesResponse> => {
   const response = await api.get(`${BASE_URL}/overrides`, { params });
   return response.data;
 };
-
+// Create a new override record
 export const createOverride = async (data: CreateOverrideDto): Promise<{ data: ManagerOverride }> => {
   const response = await api.post(`${BASE_URL}/overrides`, data);
   return response.data;
@@ -378,6 +381,7 @@ export interface NotificationsResponse {
   data: ManagerNotification[];
 }
 
+// Fetch notifications
 export const getNotifications = async (params?: GetNotificationsParams): Promise<NotificationsResponse> => {
   const response = await api.get(`${BASE_URL}/notifications`, { params });
   return response.data;

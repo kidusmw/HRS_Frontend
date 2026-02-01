@@ -35,7 +35,7 @@ export function SummaryCard({
         </CardContent>
       </Card>
     );
-  }
+  } 
 
   return (
     <Card>
@@ -58,4 +58,3 @@ export function SummaryCard({
     </Card>
   );
 }
-

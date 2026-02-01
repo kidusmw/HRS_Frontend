@@ -7,5 +7,3 @@ export async function getDashboardMetrics(): Promise<DashboardMetrics> {
   const response = await api.get(`${BASE_URL}/dashboard/metrics`)
   return response.data
 }
-
-

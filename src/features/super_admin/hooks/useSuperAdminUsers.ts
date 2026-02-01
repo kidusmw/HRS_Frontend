@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { UserListItem } from '@/types/admin'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { activateUser, deactivateUser, deleteUser, getHotels, getUsers, resetUserPassword } from '../api'
 

@@ -17,6 +17,8 @@ export interface ReceptionistDashboardMetrics {
   };
 }
 
+// Fetch dashboard metrics
+// GET /receptionist/dashboard
 export const getDashboardMetrics = async (): Promise<ReceptionistDashboardMetrics> => {
   const response = await api.get(`${BASE_URL}/dashboard`);
   return response.data;

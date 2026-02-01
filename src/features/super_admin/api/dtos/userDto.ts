@@ -1,15 +1,18 @@
 import type { CreateUserDto, UpdateUserDto } from '@/types/admin'
 
+// DTO for creating a super admin user, with optional password generation and active status
 export type CreateSuperAdminUserInput = CreateUserDto & {
   generatePassword?: boolean
   active?: boolean
 }
 
+// DTO for updating a super admin user, with optional active status and password
 export type UpdateSuperAdminUserInput = UpdateUserDto & {
   active?: boolean
   password?: string
 }
 
+// Prepare payload for creating a super admin user
 export function toCreateUserPayload(data: CreateSuperAdminUserInput): Record<string, unknown> {
   const payload: Record<string, unknown> = {
     name: data.name,
@@ -20,7 +23,7 @@ export function toCreateUserPayload(data: CreateSuperAdminUserInput): Record<str
     phone_number: data.phoneNumber,
     active: data.active,
   }
-
+  // Optionally assign a hotel if provided
   if (data.hotelId !== undefined && data.hotelId !== null) {
     payload.hotel_id = data.hotelId
   }
@@ -28,6 +31,7 @@ export function toCreateUserPayload(data: CreateSuperAdminUserInput): Record<str
   return payload
 }
 
+// Prepare payload for updating a super admin user
 export function toUpdateUserPayload(data: UpdateSuperAdminUserInput): Record<string, unknown> {
   const payload: Record<string, unknown> = {}
 

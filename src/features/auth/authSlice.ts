@@ -1,7 +1,7 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { registerUser, verifyEmail, loginUser, logoutUser } from '@/features/auth/api/authApi';
+import { loginUser, logoutUser, registerUser, verifyEmail } from '@/features/auth/api/authApi';
 import { mapUserDto } from '@/features/auth/mappers/userMapper';
 import type { AuthState, LoginCredentials, RegisterData } from '@/types/auth';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
 const initialState: AuthState = {
   user: null,

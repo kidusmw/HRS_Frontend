@@ -1,8 +1,8 @@
-import { format } from 'date-fns'
-import type { DateRange } from 'react-day-picker'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
+import { format } from 'date-fns'
+import type { DateRange } from 'react-day-picker'
 import type { AvailabilityByType } from '../types'
 
 type Props = {
@@ -61,7 +61,7 @@ export function ConfirmationDialog({
               <div className="text-sm font-medium">Total Amount</div>
               <div className="text-2xl font-semibold">
                 {totalPrice !== null
-                  ? `$${totalPrice.toFixed(2)}`
+                  ? `${totalPrice.toFixed(2)}ETB`
                   : selectedRoomType.priceFrom !== null
                     ? `$${selectedRoomType.priceFrom} / night`
                     : 'N/A'}

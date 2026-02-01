@@ -1,13 +1,17 @@
 import axios from 'axios';
 
+// Create an Axios instance with default configuration
 const api = axios.create({
+  // Use environment variable for base URL or default to localhost
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  // Default headers: accept JSON responses
   headers: {
     Accept: 'application/json',
   },
 });
 
 // Request interceptor to attach Bearer token
+// Before every request is sent, Automatically attach the auth token
 api.interceptors.request.use(
   (config) => {
     // Get the token from local storage
@@ -27,6 +31,7 @@ api.interceptors.request.use(
 );
 
 // Response interceptor to handle common errors
+// After every response is received, handle unauthorized errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {

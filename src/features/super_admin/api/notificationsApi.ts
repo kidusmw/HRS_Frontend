@@ -11,5 +11,3 @@ export async function getNotifications(params?: { limit?: number }): Promise<{ d
 export async function markNotificationRead(id: number): Promise<void> {
   await api.patch(`${BASE_URL}/notifications/${id}/read`)
 }
-
-

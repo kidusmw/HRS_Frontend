@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useDispatch } from 'react-redux'
 import type { AppDispatch } from '@/app/store'
 import { hydrateFromStorage } from '@/features/auth/authSlice'
+import { useEffect, useRef, useState } from 'react'
+import { useDispatch } from 'react-redux'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { exchangeGoogleOAuthCode } from '../api/authApi'
 
 export type OAuthCallbackStatus = 'loading' | 'success' | 'error'
@@ -20,6 +20,8 @@ function resolveRedirectPathByRole(role: string | undefined): string {
   return '/'
 }
 
+// Hook to handle Google OAuth callback
+// Parses URL parameters, exchanges code for tokens, updates state, and redirects user
 export function useGoogleOAuthCallback(options?: Options) {
   const { successRedirectDelayMs = 1500, errorRedirectDelayMs = 2000 } = options ?? {}
 

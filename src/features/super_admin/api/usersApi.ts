@@ -1,8 +1,7 @@
 import api from '@/lib/axios'
 import type { UserListItem } from '@/types/admin'
-import type { PaginatedResponse, PaginationParams } from './dtos'
+import type { CreateSuperAdminUserInput, PaginatedResponse, PaginationParams, UpdateSuperAdminUserInput } from './dtos'
 import { toBackendPaginationParams, toCreateUserPayload, toUpdateUserPayload } from './dtos'
-import type { CreateSuperAdminUserInput, UpdateSuperAdminUserInput } from './dtos'
 
 const BASE_URL = '/super_admin'
 
